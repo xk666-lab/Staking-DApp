@@ -17,7 +17,7 @@ module.exports = {
       url: "http://127.0.0.1:8545", // 本地geth节点的RPC地址
       chainId: 1337, // 本地geth默认链ID，根据您的配置可能需要调整
       accounts: 
-       ["0xa07faed28cfb8015912b893374e2a53ef74ac47449519bff5aebc43305a2e6c0"]
+       ["0xa07faed28cfb8015912b893374e2a53ef74ac47449519bff5aebc43305a2e6c0","c392c8c2f574f94aff10062c5c17eae39dc5f0dce52ebe78df234552eb56342f","0x862E2f409EFA20b9a2e9b7971b4238971e411Cfb"]
     }
   }
 };

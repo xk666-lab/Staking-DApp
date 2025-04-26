@@ -31,9 +31,9 @@ export default function Home() {
 
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
-      if (window.ethereum) {
+      if ((window as any).ethereum) {
         try {
-          const provider = new ethers.BrowserProvider(window.ethereum)
+          const provider = new ethers.BrowserProvider((window as any).ethereum)
           setProvider(provider)
 
           const accounts = await provider.listAccounts()
