@@ -14,6 +14,7 @@ import { MultiPoolStaking } from "@/components/multi-pool-staking";
 import { ReferralSystem } from "@/components/referral-system";
 import { Achievements } from "@/components/achievements";
 import { TransactionHistory } from "@/components/transaction-history";
+import { BalancePanel } from "@/components/balance-panel";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
@@ -274,6 +275,7 @@ export default function Home() {
 
                 <TabsContent value="dashboard" className="mt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <BalancePanel signer={signer} account={account} isOwner={isOwner} />
                     <StakingPanel signer={signer} account={account} />
                     <StatsPanel signer={signer} account={account} />
                     <RewardsPanel signer={signer} account={account} />
