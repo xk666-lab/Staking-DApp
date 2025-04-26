@@ -1,70 +1,121 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { ethers } from "ethers"
-import { ConnectWallet } from "@/components/connect-wallet"
-import { StakingPanel } from "@/components/staking-panel"
-import { StatsPanel } from "@/components/stats-panel"
-import { RewardsPanel } from "@/components/rewards-panel"
-import { AdminPanel } from "@/components/admin-panel"
-import { AnalyticsDashboard } from "@/components/analytics-dashboard"
-import { Leaderboard } from "@/components/leaderboard"
-import { StakingCalculator } from "@/components/staking-calculator"
-import { MultiPoolStaking } from "@/components/multi-pool-staking"
-import { ReferralSystem } from "@/components/referral-system"
-import { Achievements } from "@/components/achievements"
-import { TransactionHistory } from "@/components/transaction-history"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { useToast } from "@/components/ui/use-toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, Trophy, Settings, Layers, Users, Award, History, Moon, Sun } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import { ConnectWallet } from "@/components/connect-wallet";
+import { StakingPanel } from "@/components/staking-panel";
+import { StatsPanel } from "@/components/stats-panel";
+import { RewardsPanel } from "@/components/rewards-panel";
+import { AdminPanel } from "@/components/admin-panel";
+import { AnalyticsDashboard } from "@/components/analytics-dashboard";
+import { Leaderboard } from "@/components/leaderboard";
+import { StakingCalculator } from "@/components/staking-calculator";
+import { MultiPoolStaking } from "@/components/multi-pool-staking";
+import { ReferralSystem } from "@/components/referral-system";
+import { Achievements } from "@/components/achievements";
+import { TransactionHistory } from "@/components/transaction-history";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  BarChart3,
+  Trophy,
+  Settings,
+  Layers,
+  Users,
+  Award,
+  History,
+  Moon,
+  Sun,
+  Shield,
+  User,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { stakingABI, getContractAddresses } from "@/lib/contracts";
 
 export default function Home() {
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
-  const [signer, setSigner] = useState<ethers.Signer | null>(null)
-  const [account, setAccount] = useState<string>("")
-  const [isOwner, setIsOwner] = useState(false)
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
-  const { toast } = useToast()
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [account, setAccount] = useState<string>("");
+  const [isOwner, setIsOwner] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const { toast } = useToast();
+
+  // 检查当前账户是否是合约所有者
+  const checkIfOwner = async (account: string, signer: ethers.Signer) => {
+    try {
+      const { stakingAddress } = getContractAddresses();
+      const stakingContract = new ethers.Contract(
+        stakingAddress,
+        stakingABI,
+        signer
+      );
+
+      const owner = await stakingContract.owner();
+      const isOwnerAccount = owner.toLowerCase() === account.toLowerCase();
+      setIsOwner(isOwnerAccount);
+
+      console.log(
+        `检查管理员状态: 账户=${account}, 合约所有者=${owner}, 是管理员=${isOwnerAccount}`
+      );
+    } catch (error) {
+      console.error("检查所有者状态时出错:", error);
+      setIsOwner(false);
+    }
+  };
 
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
       if ((window as any).ethereum) {
         try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum)
-          setProvider(provider)
+          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          setProvider(provider);
 
-          const accounts = await provider.listAccounts()
+          const accounts = await provider.listAccounts();
           if (accounts.length > 0) {
-            const signer = await provider.getSigner()
-            setSigner(signer)
-            setAccount(await signer.getAddress())
+            const signer = await provider.getSigner();
+            setSigner(signer);
+            const currentAccount = await signer.getAddress();
+            setAccount(currentAccount);
+
+            // 检查账户是否是管理员
+            await checkIfOwner(currentAccount, signer);
           }
         } catch (error) {
-          console.error("Error connecting to MetaMask", error)
+          console.error("Error connecting to MetaMask", error);
         }
       } else {
         toast({
           title: "MetaMask not detected",
           description: "Please install MetaMask to use this dApp",
           variant: "destructive",
-        })
+        });
       }
-    }
+    };
 
-    checkIfWalletIsConnected()
-  }, [toast])
+    checkIfWalletIsConnected();
+  }, [toast]);
+
+  // 当账户变化时重新检查管理员状态
+  useEffect(() => {
+    if (account && signer) {
+      checkIfOwner(account, signer);
+    }
+  }, [account, signer]);
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   return (
     <ThemeProvider attribute="class" defaultTheme={theme} enableSystem={false}>
       <main
-        className={`min-h-screen ${theme === "dark" ? "bg-gradient-to-br from-gray-900 to-black text-white" : "bg-gradient-to-br from-gray-100 to-white text-gray-900"}`}
+        className={`min-h-screen ${
+          theme === "dark"
+            ? "bg-gradient-to-br from-gray-900 to-black text-white"
+            : "bg-gradient-to-br from-gray-100 to-white text-gray-900"
+        }`}
       >
         <div className="container mx-auto px-4 py-8">
           <header className="mb-12">
@@ -73,7 +124,11 @@ export default function Home() {
                 <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600">
                   Quantum Staking
                 </h1>
-                <p className={`${theme === "dark" ? "text-gray-400" : "text-gray-600"} mt-2`}>
+                <p
+                  className={`${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  } mt-2`}
+                >
                   Stake your tokens and earn rewards in the quantum realm
                 </p>
               </div>
@@ -82,11 +137,48 @@ export default function Home() {
                   variant="outline"
                   size="icon"
                   onClick={toggleTheme}
-                  className={`${theme === "dark" ? "border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800" : "border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}
+                  className={`${
+                    theme === "dark"
+                      ? "border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800"
+                      : "border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                  }`}
                 >
-                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                 </Button>
-                <ConnectWallet provider={provider} setAccount={setAccount} setSigner={setSigner} account={account} />
+
+                {account && (
+                  <div
+                    className={`px-3 py-1.5 rounded-full flex items-center ${
+                      isOwner
+                        ? "bg-purple-600/20 border border-purple-500/40 text-purple-400"
+                        : "bg-cyan-600/20 border border-cyan-500/40 text-cyan-400"
+                    }`}
+                  >
+                    {isOwner ? (
+                      <>
+                        <Shield className="h-3.5 w-3.5 mr-1.5" />
+                        <span className="text-xs font-medium">管理员</span>
+                      </>
+                    ) : (
+                      <>
+                        <User className="h-3.5 w-3.5 mr-1.5" />
+                        <span className="text-xs font-medium">用户</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <ConnectWallet
+                  provider={provider}
+                  setAccount={setAccount}
+                  setSigner={setSigner}
+                  account={account}
+                  isOwner={isOwner}
+                />
               </div>
             </div>
           </header>
@@ -94,45 +186,73 @@ export default function Home() {
           {account ? (
             <>
               <Tabs defaultValue="dashboard" className="mb-8">
-                <TabsList className={`w-full ${theme === "dark" ? "bg-gray-800/50" : "bg-gray-200/50"} p-1`}>
+                <TabsList
+                  className={`w-full ${
+                    theme === "dark" ? "bg-gray-800/50" : "bg-gray-200/50"
+                  } p-1`}
+                >
                   <TabsTrigger
                     value="dashboard"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Dashboard
                   </TabsTrigger>
                   <TabsTrigger
                     value="pools"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <Layers className="h-4 w-4 mr-2" />
                     Pools
                   </TabsTrigger>
                   <TabsTrigger
                     value="leaderboard"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <Trophy className="h-4 w-4 mr-2" />
                     Leaderboard
                   </TabsTrigger>
                   <TabsTrigger
                     value="referrals"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <Users className="h-4 w-4 mr-2" />
                     Referrals
                   </TabsTrigger>
                   <TabsTrigger
                     value="achievements"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <Award className="h-4 w-4 mr-2" />
                     Achievements
                   </TabsTrigger>
                   <TabsTrigger
                     value="history"
-                    className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
                   >
                     <History className="h-4 w-4 mr-2" />
                     History
@@ -140,7 +260,11 @@ export default function Home() {
                   {isOwner && (
                     <TabsTrigger
                       value="admin"
-                      className={`flex-1 ${theme === "dark" ? "data-[state=active]:bg-gray-700" : "data-[state=active]:bg-white"}`}
+                      className={`flex-1 ${
+                        theme === "dark"
+                          ? "data-[state=active]:bg-gray-700"
+                          : "data-[state=active]:bg-white"
+                      }`}
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Admin
@@ -212,8 +336,13 @@ export default function Home() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
-              <p className={`${theme === "dark" ? "text-gray-400" : "text-gray-600"} max-w-md mb-8`}>
-                Connect your wallet to start staking tokens and earning rewards in our quantum staking protocol.
+              <p
+                className={`${
+                  theme === "dark" ? "text-gray-400" : "text-gray-600"
+                } max-w-md mb-8`}
+              >
+                Connect your wallet to start staking tokens and earning rewards
+                in our quantum staking protocol.
               </p>
             </div>
           )}
@@ -221,5 +350,5 @@ export default function Home() {
         <Toaster />
       </main>
     </ThemeProvider>
-  )
+  );
 }

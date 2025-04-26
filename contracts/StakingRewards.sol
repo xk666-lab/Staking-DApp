@@ -95,8 +95,19 @@ contract StakingRewards {
     }
 
     function setRewardsDuration(uint256 _duration) external onlyOwner {
-        require(finishAt < block.timestamp, "reward duration not finished");
+        if (block.timestamp < finishAt) {
+            rewardPerTokenStored = rewardPerToken();
+            updatedAt = lastTimeRewardApplicable();
+        }
+
         duration = _duration;
+    }
+
+    function resetRewardsCycle() external onlyOwner updateReward(address(0)) {
+        rewardPerTokenStored = rewardPerToken();
+        updatedAt = block.timestamp;
+
+        finishAt = block.timestamp;
     }
 
     function notifyRewardAmount(
@@ -118,6 +129,16 @@ contract StakingRewards {
 
         finishAt = block.timestamp + duration;
         updatedAt = block.timestamp;
+    }
+
+    function getRewardCycleStatus()
+        external
+        view
+        returns (uint256 endTime, bool isActive, uint256 remainingTime)
+    {
+        endTime = finishAt;
+        isActive = block.timestamp < finishAt;
+        remainingTime = isActive ? finishAt - block.timestamp : 0;
     }
 
     function _min(uint256 x, uint256 y) private pure returns (uint256) {
