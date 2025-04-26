@@ -1,229 +1,481 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import type { ethers } from "ethers"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { ArrowUpCircle, ArrowDownCircle, Gift, Clock, ExternalLink } from "lucide-react"
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Gift,
+  Clock,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
+import { stakingABI, getContractAddresses } from "@/lib/contracts";
+import Link from "next/link";
 
 interface TransactionHistoryProps {
-  signer: ethers.Signer | null
-  account: string
+  signer: ethers.Signer | null;
+  account: string;
 }
 
 interface Transaction {
-  id: string
-  type: "stake" | "withdraw" | "claim" | "referral"
-  amount: string
-  timestamp: number
-  hash: string
-  status: "confirmed" | "pending" | "failed"
-  pool?: string
+  id: string;
+  type: "stake" | "withdraw" | "claim" | "referral";
+  amount: string;
+  formattedAmount: string;
+  timestamp: number;
+  dateTime: string;
+  hash: string;
+  status: "confirmed" | "pending" | "failed";
+  pool?: string;
+  blockNumber: number;
 }
 
-export function TransactionHistory({ signer, account }: TransactionHistoryProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<"all" | "stake" | "withdraw" | "claim" | "referral">("all")
+export function TransactionHistory({
+  signer,
+  account,
+}: TransactionHistoryProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<
+    "all" | "stake" | "withdraw" | "claim" | "referral"
+  >("all");
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const { stakingAddress } = getContractAddresses();
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!account) return
+      if (!signer || !account) return;
 
       try {
-        setLoading(true)
+        setLoading(true);
+        setError(null);
 
-        // In a real implementation, you would fetch this from your backend or blockchain
-        // For demo purposes, we'll use mock data
-        const mockTransactions: Transaction[] = [
-          {
-            id: "tx1",
-            type: "stake",
-            amount: "500",
-            timestamp: Date.now() - 3600000, // 1 hour ago
-            hash: "0x1234...5678",
-            status: "confirmed",
-            pool: "Stable Pool",
-          },
-          {
-            id: "tx2",
-            type: "stake",
-            amount: "750",
-            timestamp: Date.now() - 86400000, // 1 day ago
-            hash: "0x2345...6789",
-            status: "confirmed",
-            pool: "Growth Pool",
-          },
-          {
-            id: "tx3",
-            type: "claim",
-            amount: "25.5",
-            timestamp: Date.now() - 172800000, // 2 days ago
-            hash: "0x3456...7890",
-            status: "confirmed",
-          },
-          {
-            id: "tx4",
-            type: "withdraw",
-            amount: "200",
-            timestamp: Date.now() - 259200000, // 3 days ago
-            hash: "0x4567...8901",
-            status: "confirmed",
-            pool: "Stable Pool",
-          },
-          {
-            id: "tx5",
-            type: "referral",
-            amount: "12.5",
-            timestamp: Date.now() - 345600000, // 4 days ago
-            hash: "0x5678...9012",
-            status: "confirmed",
-          },
-          {
-            id: "tx6",
-            type: "stake",
-            amount: "1000",
-            timestamp: Date.now() - 432000000, // 5 days ago
-            hash: "0x6789...0123",
-            status: "failed",
-            pool: "Turbo Pool",
-          },
-        ]
+        // 确保在客户端环境中
+        if (typeof window === "undefined") {
+          return;
+        }
 
-        setTransactions(mockTransactions)
+        console.log("开始获取交易历史数据，账户:", account);
+
+        // 获取合约实例
+        const stakingContract = new ethers.Contract(
+          stakingAddress,
+          stakingABI,
+          signer
+        );
+
+        const provider = signer.provider;
+        if (!provider) {
+          setError("无法连接到区块链网络");
+          return;
+        }
+
+        // 获取当前区块
+        const currentBlock = await provider.getBlockNumber();
+        console.log("当前区块:", currentBlock);
+
+        // 获取过去3000个区块的事件
+        const fromBlock = Math.max(0, currentBlock - 3000);
+
+        // 创建过滤器，获取该账户的所有质押、提款和奖励事件
+        const stakeFilter = stakingContract.filters.Staked(account);
+        const withdrawFilter = stakingContract.filters.Withdrawn(account);
+        const rewardFilter = stakingContract.filters.RewardPaid(account);
+
+        console.log("查询事件，从区块:", fromBlock);
+
+        // 并行查询所有事件
+        const [stakeEvents, withdrawEvents, rewardEvents] = await Promise.all([
+          stakingContract.queryFilter(stakeFilter, fromBlock),
+          stakingContract.queryFilter(withdrawFilter, fromBlock),
+          stakingContract.queryFilter(rewardFilter, fromBlock),
+        ]);
+
+        console.log(
+          "找到事件数量: 质押:",
+          stakeEvents.length,
+          "提款:",
+          withdrawEvents.length,
+          "奖励:",
+          rewardEvents.length
+        );
+
+        // 处理所有事件并解析数据
+        const parsedTransactions: Transaction[] = [];
+
+        // 处理质押事件
+        for (const event of stakeEvents) {
+          try {
+            const block = await provider.getBlock(event.blockNumber);
+            if (!block) continue;
+
+            const tx = await provider.getTransaction(event.transactionHash);
+            if (!tx) continue;
+
+            const timestamp = block.timestamp * 1000; // 转换为毫秒
+            const decodedData = stakingContract.interface.parseLog({
+              topics: event.topics,
+              data: event.data,
+            });
+
+            if (!decodedData || !decodedData.args) continue;
+
+            const amount = decodedData.args.amount;
+
+            parsedTransactions.push({
+              id: `stake-${event.transactionHash}-${event.logIndex}`,
+              type: "stake",
+              amount: amount.toString(),
+              formattedAmount: ethers.formatEther(amount),
+              timestamp: timestamp,
+              dateTime: new Date(timestamp).toLocaleString("zh-CN"),
+              hash: event.transactionHash,
+              status: "confirmed",
+              pool: "Stable Pool", // 这里可以根据实际情况确定池名称
+              blockNumber: event.blockNumber,
+            });
+          } catch (error) {
+            console.error("解析质押事件出错:", error);
+          }
+        }
+
+        // 处理提款事件
+        for (const event of withdrawEvents) {
+          try {
+            const block = await provider.getBlock(event.blockNumber);
+            if (!block) continue;
+
+            const timestamp = block.timestamp * 1000;
+            const decodedData = stakingContract.interface.parseLog({
+              topics: event.topics,
+              data: event.data,
+            });
+
+            if (!decodedData || !decodedData.args) continue;
+
+            const amount = decodedData.args.amount;
+
+            parsedTransactions.push({
+              id: `withdraw-${event.transactionHash}-${event.logIndex}`,
+              type: "withdraw",
+              amount: amount.toString(),
+              formattedAmount: ethers.formatEther(amount),
+              timestamp: timestamp,
+              dateTime: new Date(timestamp).toLocaleString("zh-CN"),
+              hash: event.transactionHash,
+              status: "confirmed",
+              pool: "Stable Pool", // 同上
+              blockNumber: event.blockNumber,
+            });
+          } catch (error) {
+            console.error("解析提款事件出错:", error);
+          }
+        }
+
+        // 处理奖励事件
+        for (const event of rewardEvents) {
+          try {
+            const block = await provider.getBlock(event.blockNumber);
+            if (!block) continue;
+
+            const timestamp = block.timestamp * 1000;
+            const decodedData = stakingContract.interface.parseLog({
+              topics: event.topics,
+              data: event.data,
+            });
+
+            if (!decodedData || !decodedData.args) continue;
+
+            const reward = decodedData.args.reward;
+
+            parsedTransactions.push({
+              id: `claim-${event.transactionHash}-${event.logIndex}`,
+              type: "claim",
+              amount: reward.toString(),
+              formattedAmount: ethers.formatEther(reward),
+              timestamp: timestamp,
+              dateTime: new Date(timestamp).toLocaleString("zh-CN"),
+              hash: event.transactionHash,
+              status: "confirmed",
+              blockNumber: event.blockNumber,
+            });
+          } catch (error) {
+            console.error("解析奖励事件出错:", error);
+          }
+        }
+
+        // 按时间倒序排序
+        parsedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+
+        console.log("处理完成，总共找到交易:", parsedTransactions.length);
+
+        // 如果没有找到真实事件，可以保留一些模拟数据供展示
+        if (parsedTransactions.length === 0) {
+          console.log("没有找到真实交易，使用模拟数据");
+          // 仅为演示添加一些模拟交易
+          const mockTransactions: Transaction[] = [
+            {
+              id: "mock-tx1",
+              type: "stake",
+              amount: "500000000000000000000",
+              formattedAmount: "500.00",
+              timestamp: Date.now() - 3600000, // 1小时前
+              dateTime: new Date(Date.now() - 3600000).toLocaleString("zh-CN"),
+              hash: "0x1234...5678",
+              status: "confirmed",
+              pool: "Stable Pool",
+              blockNumber: currentBlock - 100,
+            },
+            {
+              id: "mock-tx2",
+              type: "claim",
+              amount: "25500000000000000000",
+              formattedAmount: "25.50",
+              timestamp: Date.now() - 86400000, // 1天前
+              dateTime: new Date(Date.now() - 86400000).toLocaleString("zh-CN"),
+              hash: "0x3456...7890",
+              status: "confirmed",
+              blockNumber: currentBlock - 500,
+            },
+          ];
+          setTransactions(mockTransactions);
+        } else {
+          setTransactions(parsedTransactions);
+        }
+
+        setLastUpdate(new Date());
       } catch (error) {
-        console.error("Error fetching transactions:", error)
+        console.error("获取交易历史时出错:", error);
+        setError("获取交易历史失败，请稍后再试");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTransactions()
-  }, [account])
+    fetchTransactions();
 
-  const filteredTransactions = transactions.filter((tx) => filter === "all" || tx.type === filter)
+    // 定期刷新交易历史（每3分钟）
+    const interval = setInterval(fetchTransactions, 180000);
+    return () => clearInterval(interval);
+  }, [signer, account, stakingAddress]);
+
+  const filteredTransactions = transactions.filter(
+    (tx) => filter === "all" || tx.type === filter
+  );
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case "stake":
-        return <ArrowUpCircle className="h-5 w-5 text-green-400" />
+        return <ArrowUpCircle className="h-5 w-5 text-emerald-400" />;
       case "withdraw":
-        return <ArrowDownCircle className="h-5 w-5 text-red-400" />
+        return <ArrowDownCircle className="h-5 w-5 text-rose-400" />;
       case "claim":
-        return <Gift className="h-5 w-5 text-purple-400" />
+        return <Gift className="h-5 w-5 text-amber-400" />;
       case "referral":
-        return <Gift className="h-5 w-5 text-cyan-400" />
+        return <Gift className="h-5 w-5 text-cyan-400" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-400" />
+        return <Clock className="h-5 w-5 text-gray-400" />;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
-        return <Badge className="bg-green-900/30 text-green-400 border-green-700/50">Confirmed</Badge>
+        return (
+          <Badge className="bg-emerald-900/30 text-emerald-400 border-emerald-700/50 text-sm">
+            已确认
+          </Badge>
+        );
       case "pending":
-        return <Badge className="bg-yellow-900/30 text-yellow-400 border-yellow-700/50">Pending</Badge>
+        return (
+          <Badge className="bg-amber-900/30 text-amber-400 border-amber-700/50 text-sm">
+            处理中
+          </Badge>
+        );
       case "failed":
-        return <Badge className="bg-red-900/30 text-red-400 border-red-700/50">Failed</Badge>
+        return (
+          <Badge className="bg-rose-900/30 text-rose-400 border-rose-700/50 text-sm">
+            失败
+          </Badge>
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp)
-    return date.toLocaleString()
-  }
+  const getTransactionDescription = (tx: Transaction) => {
+    switch (tx.type) {
+      case "stake":
+        return `质押在 ${tx.pool || "质押池"}`;
+      case "withdraw":
+        return `从 ${tx.pool || "质押池"} 提取`;
+      case "claim":
+        return "已领取奖励";
+      case "referral":
+        return "推荐奖励";
+      default:
+        return "未知交易";
+    }
+  };
+
+  const getAmountText = (tx: Transaction) => {
+    const amount = Number(tx.formattedAmount).toLocaleString("zh-CN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    switch (tx.type) {
+      case "stake":
+        return (
+          <span className="font-bold text-emerald-400">{`+${amount} 代币`}</span>
+        );
+      case "withdraw":
+        return (
+          <span className="font-bold text-rose-400">{`-${amount} 代币`}</span>
+        );
+      case "claim":
+      case "referral":
+        return (
+          <span className="font-bold text-amber-400">{`+${amount} 奖励`}</span>
+        );
+      default:
+        return <span className="font-bold">{amount} 代币</span>;
+    }
+  };
 
   return (
     <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
       <CardHeader>
-        <CardTitle className="text-xl text-purple-400">Transaction History</CardTitle>
-        <CardDescription>View your staking and reward transactions</CardDescription>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-400">
+            交易历史
+          </CardTitle>
+          <div className="text-xs text-gray-400 flex items-center">
+            <RefreshCw className="h-3 w-3 mr-1" />
+            最后更新: {lastUpdate.toLocaleTimeString("zh-CN")}
+          </div>
+        </div>
+        <CardDescription className="text-base text-gray-200">
+          查看您的质押和奖励交易
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+          <div className="flex justify-center items-center h-60">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-60 text-center">
+            <div className="text-rose-400 mb-2 text-lg">⚠️ {error}</div>
+            <div className="text-sm text-gray-400">
+              请检查您的网络连接并尝试刷新页面
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
-            <Tabs defaultValue="all" onValueChange={(value) => setFilter(value as any)}>
+            <Tabs
+              defaultValue="all"
+              onValueChange={(value) => setFilter(value as any)}
+            >
               <TabsList className="grid grid-cols-5 bg-gray-800/50">
-                <TabsTrigger value="all" className="data-[state=active]:bg-gray-700">
-                  All
+                <TabsTrigger
+                  value="all"
+                  className="data-[state=active]:bg-gray-700 text-base"
+                >
+                  全部
                 </TabsTrigger>
-                <TabsTrigger value="stake" className="data-[state=active]:bg-gray-700">
-                  Stakes
+                <TabsTrigger
+                  value="stake"
+                  className="data-[state=active]:bg-gray-700 text-base"
+                >
+                  质押
                 </TabsTrigger>
-                <TabsTrigger value="withdraw" className="data-[state=active]:bg-gray-700">
-                  Withdrawals
+                <TabsTrigger
+                  value="withdraw"
+                  className="data-[state=active]:bg-gray-700 text-base"
+                >
+                  提取
                 </TabsTrigger>
-                <TabsTrigger value="claim" className="data-[state=active]:bg-gray-700">
-                  Claims
+                <TabsTrigger
+                  value="claim"
+                  className="data-[state=active]:bg-gray-700 text-base"
+                >
+                  领取
                 </TabsTrigger>
-                <TabsTrigger value="referral" className="data-[state=active]:bg-gray-700">
-                  Referrals
+                <TabsTrigger
+                  value="referral"
+                  className="data-[state=active]:bg-gray-700 text-base"
+                >
+                  推荐
                 </TabsTrigger>
               </TabsList>
-            </Tabs>
 
-            {filteredTransactions.length > 0 ? (
-              <div className="space-y-4">
-                {filteredTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="p-4 rounded-lg bg-gray-800/30 border border-gray-700 flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 rounded-full bg-gray-800">{getTransactionIcon(tx.type)}</div>
-                      <div>
-                        <div className="font-medium capitalize">
-                          {tx.type === "stake"
-                            ? `Staked in ${tx.pool}`
-                            : tx.type === "withdraw"
-                              ? `Withdrew from ${tx.pool}`
-                              : tx.type === "claim"
-                                ? "Claimed Rewards"
-                                : "Referral Bonus"}
+              <TabsContent value={filter} className="mt-6">
+                {filteredTransactions.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredTransactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="p-4 rounded-lg bg-gray-800/30 border border-gray-700 hover:bg-gray-800/50 transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="p-2 rounded-full bg-gray-800">
+                            {getTransactionIcon(tx.type)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-base text-white">
+                              {getTransactionDescription(tx)}
+                            </div>
+                            <div className="text-sm text-gray-300 flex items-center">
+                              <span className="mr-2">{tx.dateTime}</span>
+                              <a
+                                href={`https://etherscan.io/tx/${tx.hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center text-cyan-400 hover:text-cyan-300"
+                              >
+                                {tx.hash.substring(0, 6)}...
+                                {tx.hash.substring(tx.hash.length - 4)}
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </a>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 flex items-center">
-                          <span className="mr-2">{formatTimestamp(tx.timestamp)}</span>
-                          <a
-                            href={`https://etherscan.io/tx/${tx.hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-cyan-400 hover:text-cyan-300"
-                          >
-                            {tx.hash.substring(0, 6)}...{tx.hash.substring(tx.hash.length - 4)}
-                            <ExternalLink className="h-3 w-3 ml-1" />
-                          </a>
+                        <div className="text-right">
+                          <div className="text-lg">{getAmountText(tx)}</div>
+                          <div className="mt-1">
+                            {getStatusBadge(tx.status)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">
-                        {tx.type === "stake" || tx.type === "withdraw"
-                          ? `${tx.type === "stake" ? "+" : "-"}${tx.amount} Tokens`
-                          : `+${tx.amount} Rewards`}
-                      </div>
-                      <div className="mt-1">{getStatusBadge(tx.status)}</div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10 text-gray-400">
-                <Clock className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p>No transactions found</p>
-                <p className="text-xs mt-1">Transactions will appear here once you start staking</p>
-              </div>
-            )}
+                ) : (
+                  <div className="text-center py-10 text-gray-300">
+                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-50 text-gray-400" />
+                    <p className="text-lg">暂无交易记录</p>
+                    <p className="text-sm mt-2 text-gray-400">
+                      开始质押后，您的交易将会显示在这里
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
