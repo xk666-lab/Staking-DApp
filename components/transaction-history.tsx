@@ -21,6 +21,13 @@ import {
 } from "lucide-react";
 import { stakingABI, getContractAddresses } from "@/lib/contracts";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+// 动态导入内容组件，确保仅在客户端渲染
+const DynamicTransactionContent = dynamic(
+  () => Promise.resolve(TransactionHistoryContent),
+  { ssr: false }
+);
 
 interface TransactionHistoryProps {
   signer: ethers.Signer | null;
@@ -40,7 +47,33 @@ interface Transaction {
   blockNumber: number;
 }
 
-export function TransactionHistory({
+// 主导出组件
+export function TransactionHistory(props: TransactionHistoryProps) {
+  return (
+    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-400">
+            交易历史
+          </CardTitle>
+          <div className="text-xs text-gray-400 flex items-center">
+            <RefreshCw className="h-3 w-3 mr-1" />
+            最后更新
+          </div>
+        </div>
+        <CardDescription className="text-base text-gray-200">
+          查看您的质押和奖励交易
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DynamicTransactionContent {...props} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// 客户端渲染内容组件
+function TransactionHistoryContent({
   signer,
   account,
 }: TransactionHistoryProps) {
@@ -51,12 +84,18 @@ export function TransactionHistory({
     "all" | "stake" | "withdraw" | "claim" | "referral"
   >("all");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isMounted, setIsMounted] = useState(false);
 
   const { stakingAddress } = getContractAddresses();
 
+  // 确保组件只在客户端渲染
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!signer || !account) return;
+      if (!signer || !account || !isMounted) return;
 
       try {
         setLoading(true);
@@ -135,7 +174,7 @@ export function TransactionHistory({
             const amount = decodedData.args.amount;
 
             parsedTransactions.push({
-              id: `stake-${event.transactionHash}-${event.logIndex}`,
+              id: `stake-${event.transactionHash}-${event.index || "0"}`,
               type: "stake",
               amount: amount.toString(),
               formattedAmount: ethers.formatEther(amount),
@@ -151,7 +190,7 @@ export function TransactionHistory({
           }
         }
 
-        // 处理提款事件
+        // 处理提取事件
         for (const event of withdrawEvents) {
           try {
             const block = await provider.getBlock(event.blockNumber);
@@ -168,7 +207,7 @@ export function TransactionHistory({
             const amount = decodedData.args.amount;
 
             parsedTransactions.push({
-              id: `withdraw-${event.transactionHash}-${event.logIndex}`,
+              id: `withdraw-${event.transactionHash}-${event.index || "0"}`,
               type: "withdraw",
               amount: amount.toString(),
               formattedAmount: ethers.formatEther(amount),
@@ -176,11 +215,11 @@ export function TransactionHistory({
               dateTime: new Date(timestamp).toLocaleString("zh-CN"),
               hash: event.transactionHash,
               status: "confirmed",
-              pool: "Stable Pool", // 同上
+              pool: "Stable Pool",
               blockNumber: event.blockNumber,
             });
           } catch (error) {
-            console.error("解析提款事件出错:", error);
+            console.error("解析提取事件出错:", error);
           }
         }
 
@@ -201,7 +240,7 @@ export function TransactionHistory({
             const reward = decodedData.args.reward;
 
             parsedTransactions.push({
-              id: `claim-${event.transactionHash}-${event.logIndex}`,
+              id: `claim-${event.transactionHash}-${event.index || "0"}`,
               type: "claim",
               amount: reward.toString(),
               formattedAmount: ethers.formatEther(reward),
@@ -269,7 +308,7 @@ export function TransactionHistory({
     // 定期刷新交易历史（每3分钟）
     const interval = setInterval(fetchTransactions, 180000);
     return () => clearInterval(interval);
-  }, [signer, account, stakingAddress]);
+  }, [signer, account, stakingAddress, isMounted]);
 
   const filteredTransactions = transactions.filter(
     (tx) => filter === "all" || tx.type === filter
@@ -355,127 +394,126 @@ export function TransactionHistory({
     }
   };
 
-  return (
-    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-400">
-            交易历史
-          </CardTitle>
-          <div className="text-xs text-gray-400 flex items-center">
-            <RefreshCw className="h-3 w-3 mr-1" />
-            最后更新: {lastUpdate.toLocaleTimeString("zh-CN")}
-          </div>
-        </div>
-        <CardDescription className="text-base text-gray-200">
-          查看您的质押和奖励交易
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center h-60">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-60 text-center">
-            <div className="text-rose-400 mb-2 text-lg">⚠️ {error}</div>
-            <div className="text-sm text-gray-400">
-              请检查您的网络连接并尝试刷新页面
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <Tabs
-              defaultValue="all"
-              onValueChange={(value) => setFilter(value as any)}
-            >
-              <TabsList className="grid grid-cols-5 bg-gray-800/50">
-                <TabsTrigger
-                  value="all"
-                  className="data-[state=active]:bg-gray-700 text-base"
-                >
-                  全部
-                </TabsTrigger>
-                <TabsTrigger
-                  value="stake"
-                  className="data-[state=active]:bg-gray-700 text-base"
-                >
-                  质押
-                </TabsTrigger>
-                <TabsTrigger
-                  value="withdraw"
-                  className="data-[state=active]:bg-gray-700 text-base"
-                >
-                  提取
-                </TabsTrigger>
-                <TabsTrigger
-                  value="claim"
-                  className="data-[state=active]:bg-gray-700 text-base"
-                >
-                  领取
-                </TabsTrigger>
-                <TabsTrigger
-                  value="referral"
-                  className="data-[state=active]:bg-gray-700 text-base"
-                >
-                  推荐
-                </TabsTrigger>
-              </TabsList>
+  if (!isMounted) {
+    return (
+      <div className="flex justify-center items-center h-60">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
-              <TabsContent value={filter} className="mt-6">
-                {filteredTransactions.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredTransactions.map((tx) => (
-                      <div
-                        key={tx.id}
-                        className="p-4 rounded-lg bg-gray-800/30 border border-gray-700 hover:bg-gray-800/50 transition-colors flex items-center justify-between"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="p-2 rounded-full bg-gray-800">
-                            {getTransactionIcon(tx.type)}
-                          </div>
-                          <div>
-                            <div className="font-medium text-base text-white">
-                              {getTransactionDescription(tx)}
-                            </div>
-                            <div className="text-sm text-gray-300 flex items-center">
-                              <span className="mr-2">{tx.dateTime}</span>
-                              <a
-                                href={`https://etherscan.io/tx/${tx.hash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center text-cyan-400 hover:text-cyan-300"
-                              >
-                                {tx.hash.substring(0, 6)}...
-                                {tx.hash.substring(tx.hash.length - 4)}
-                                <ExternalLink className="h-3 w-3 ml-1" />
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg">{getAmountText(tx)}</div>
-                          <div className="mt-1">
-                            {getStatusBadge(tx.status)}
-                          </div>
-                        </div>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-60">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-60 text-center">
+        <div className="text-rose-400 mb-2 text-lg">⚠️ {error}</div>
+        <div className="text-sm text-gray-400">
+          请检查您的网络连接并尝试刷新页面
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-xs text-gray-400 flex items-center justify-end">
+        最后更新: {lastUpdate.toLocaleTimeString("zh-CN")}
+      </div>
+      <Tabs
+        defaultValue="all"
+        onValueChange={(value) => setFilter(value as any)}
+      >
+        <TabsList className="grid grid-cols-5 bg-gray-800/50">
+          <TabsTrigger
+            value="all"
+            className="data-[state=active]:bg-gray-700 text-base"
+          >
+            全部
+          </TabsTrigger>
+          <TabsTrigger
+            value="stake"
+            className="data-[state=active]:bg-gray-700 text-base"
+          >
+            质押
+          </TabsTrigger>
+          <TabsTrigger
+            value="withdraw"
+            className="data-[state=active]:bg-gray-700 text-base"
+          >
+            提取
+          </TabsTrigger>
+          <TabsTrigger
+            value="claim"
+            className="data-[state=active]:bg-gray-700 text-base"
+          >
+            领取
+          </TabsTrigger>
+          <TabsTrigger
+            value="referral"
+            className="data-[state=active]:bg-gray-700 text-base"
+          >
+            推荐
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="mt-4">
+          {filteredTransactions.length > 0 ? (
+            <div className="space-y-4 max-h-[400px] overflow-auto pr-2">
+              {filteredTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700/50"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-gray-900 rounded-full">
+                      {getTransactionIcon(tx.type)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-base text-white">
+                        {getTransactionDescription(tx)}
                       </div>
-                    ))}
+                      <div className="text-sm text-gray-400 mt-1 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {tx.dateTime}
+                        {tx.hash && (
+                          <Link
+                            href={`https://etherscan.io/tx/${tx.hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 flex items-center hover:text-cyan-400 transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            查看交易
+                          </Link>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-10 text-gray-300">
-                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-50 text-gray-400" />
-                    <p className="text-lg">暂无交易记录</p>
-                    <p className="text-sm mt-2 text-gray-400">
-                      开始质押后，您的交易将会显示在这里
-                    </p>
+                  <div className="text-right">
+                    <div className="text-lg">{getAmountText(tx)}</div>
+                    <div className="mt-1">{getStatusBadge(tx.status)}</div>
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-300">
+              <Clock className="h-12 w-12 mx-auto mb-3 opacity-50 text-gray-400" />
+              <p className="text-lg">暂无交易记录</p>
+              <p className="text-sm mt-2 text-gray-400">
+                开始质押后，您的交易将会显示在这里
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

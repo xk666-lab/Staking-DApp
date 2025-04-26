@@ -41,7 +41,13 @@ export default function Home() {
   const [account, setAccount] = useState<string>("");
   const [isOwner, setIsOwner] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
+
+  // 确保组件仅在客户端挂载后渲染
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 检查当前账户是否是合约所有者
   const checkIfOwner = async (account: string, signer: ethers.Signer) => {
@@ -68,6 +74,8 @@ export default function Home() {
 
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
+      if (!isMounted) return;
+
       if ((window as any).ethereum) {
         try {
           const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -88,15 +96,15 @@ export default function Home() {
         }
       } else {
         toast({
-          title: "MetaMask not detected",
-          description: "Please install MetaMask to use this dApp",
+          title: "MetaMask未检测到",
+          description: "请安装MetaMask钱包来使用本应用",
           variant: "destructive",
         });
       }
     };
 
     checkIfWalletIsConnected();
-  }, [toast]);
+  }, [toast, isMounted]);
 
   // 当账户变化时重新检查管理员状态
   useEffect(() => {
@@ -108,6 +116,11 @@ export default function Home() {
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
+
+  // 如果组件尚未在客户端挂载，返回空内容避免水合错误
+  if (!isMounted) {
+    return <div className="min-h-screen bg-black"></div>;
+  }
 
   return (
     <ThemeProvider attribute="class" defaultTheme={theme} enableSystem={false}>
@@ -130,7 +143,7 @@ export default function Home() {
                     theme === "dark" ? "text-gray-400" : "text-gray-600"
                   } mt-2`}
                 >
-                  Stake your tokens and earn rewards in the quantum realm
+                  在量子领域质押您的代币并获取奖励
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -201,7 +214,7 @@ export default function Home() {
                     }`}
                   >
                     <BarChart3 className="h-4 w-4 mr-2" />
-                    Dashboard
+                    控制面板
                   </TabsTrigger>
                   <TabsTrigger
                     value="pools"
@@ -212,7 +225,7 @@ export default function Home() {
                     }`}
                   >
                     <Layers className="h-4 w-4 mr-2" />
-                    Pools
+                    质押池
                   </TabsTrigger>
                   <TabsTrigger
                     value="leaderboard"
@@ -223,7 +236,7 @@ export default function Home() {
                     }`}
                   >
                     <Trophy className="h-4 w-4 mr-2" />
-                    Leaderboard
+                    排行榜
                   </TabsTrigger>
                   <TabsTrigger
                     value="referrals"
@@ -234,7 +247,7 @@ export default function Home() {
                     }`}
                   >
                     <Users className="h-4 w-4 mr-2" />
-                    Referrals
+                    推荐
                   </TabsTrigger>
                   <TabsTrigger
                     value="achievements"
@@ -245,7 +258,7 @@ export default function Home() {
                     }`}
                   >
                     <Award className="h-4 w-4 mr-2" />
-                    Achievements
+                    成就
                   </TabsTrigger>
                   <TabsTrigger
                     value="history"
@@ -256,7 +269,7 @@ export default function Home() {
                     }`}
                   >
                     <History className="h-4 w-4 mr-2" />
-                    History
+                    历史
                   </TabsTrigger>
                   {isOwner && (
                     <TabsTrigger
@@ -268,7 +281,7 @@ export default function Home() {
                       }`}
                     >
                       <Settings className="h-4 w-4 mr-2" />
-                      Admin
+                      管理
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -341,14 +354,13 @@ export default function Home() {
                   <line x1="16" y1="20" x2="16.01" y2="20" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
+              <h2 className="text-2xl font-bold mb-4">连接您的钱包</h2>
               <p
                 className={`${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 } max-w-md mb-8`}
               >
-                Connect your wallet to start staking tokens and earning rewards
-                in our quantum staking protocol.
+                连接您的钱包以开始质押代币并在我们的量子质押协议中赚取奖励。
               </p>
             </div>
           )}

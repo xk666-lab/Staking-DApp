@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ethers } from "ethers";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -22,13 +22,19 @@ export function ConnectWallet({
   isOwner,
 }: ConnectWalletProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
+
+  // 确保组件在客户端渲染
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const connectWallet = async () => {
     if (!provider) {
       toast({
-        title: "MetaMask not detected",
-        description: "Please install MetaMask to use this dApp",
+        title: "未检测到MetaMask",
+        description: "请安装MetaMask钱包以使用本应用",
         variant: "destructive",
       });
       return;
@@ -42,14 +48,14 @@ export function ConnectWallet({
       setAccount(await signer.getAddress());
 
       toast({
-        title: "Wallet connected",
-        description: "Your wallet has been successfully connected",
+        title: "钱包已连接",
+        description: "您的钱包已成功连接",
       });
     } catch (error) {
-      console.error("Error connecting wallet:", error);
+      console.error("连接钱包时出错:", error);
       toast({
-        title: "Connection failed",
-        description: "Failed to connect wallet. Please try again.",
+        title: "连接失败",
+        description: "钱包连接失败，请重试。",
         variant: "destructive",
       });
     } finally {
@@ -61,10 +67,15 @@ export function ConnectWallet({
     setAccount("");
     setSigner(null);
     toast({
-      title: "Wallet disconnected",
-      description: "Your wallet has been disconnected",
+      title: "钱包已断开",
+      description: "您的钱包已断开连接",
     });
   };
+
+  // 避免水合错误
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div>
@@ -75,7 +86,7 @@ export function ConnectWallet({
           className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white"
         >
           <Wallet className="mr-2 h-4 w-4" />
-          {isConnecting ? "Connecting..." : "Connect Wallet"}
+          {isConnecting ? "连接中..." : "连接钱包"}
         </Button>
       ) : (
         <div className="flex items-center gap-4">

@@ -85,12 +85,8 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
     return (
       <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-xl text-cyan-400">
-            Rewards Calculator
-          </CardTitle>
-          <CardDescription>
-            Estimate your potential staking rewards
-          </CardDescription>
+          <CardTitle className="text-xl text-cyan-400">奖励计算器</CardTitle>
+          <CardDescription>估算您的潜在质押奖励</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-40">
@@ -104,12 +100,8 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
   return (
     <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-xl text-cyan-400">
-          Rewards Calculator
-        </CardTitle>
-        <CardDescription>
-          Estimate your potential staking rewards
-        </CardDescription>
+        <CardTitle className="text-xl text-cyan-400">奖励计算器</CardTitle>
+        <CardDescription>估算您的潜在质押奖励</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -119,7 +111,7 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="stake-amount">Stake Amount</Label>
+              <Label htmlFor="stake-amount">质押数量</Label>
               <div className="relative">
                 <Input
                   id="stake-amount"
@@ -129,15 +121,15 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
                   className="bg-gray-800 border-gray-700 pr-16"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
-                  Tokens
+                  代币
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label htmlFor="stake-duration">Staking Period</Label>
-                <span className="text-sm text-gray-400">{duration} days</span>
+                <Label htmlFor="stake-duration">质押周期</Label>
+                <span className="text-sm text-gray-400">{duration} 天</span>
               </div>
               <Slider
                 id="stake-duration"
@@ -149,28 +141,28 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
                 className="py-4"
               />
               <div className="flex justify-between text-xs text-gray-500">
-                <span>1 day</span>
-                <span>180 days</span>
-                <span>365 days</span>
+                <span>1 天</span>
+                <span>180 天</span>
+                <span>365 天</span>
               </div>
             </div>
 
             <div className="bg-gradient-to-r from-cyan-900/20 to-purple-900/20 rounded-lg p-4 border border-gray-800">
               <div className="flex items-center mb-4">
                 <Calculator className="h-5 w-5 mr-2 text-cyan-400" />
-                <h3 className="font-medium">Estimated Returns</h3>
+                <h3 className="font-medium">预计收益</h3>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-400">Current APY</div>
+                  <div className="text-sm text-gray-400">当前年化收益率</div>
                   <div className="text-2xl font-bold text-cyan-400">
                     {apy.toFixed(2)}%
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-sm text-gray-400">Estimated Rewards</div>
+                  <div className="text-sm text-gray-400">预计奖励</div>
                   <div className="text-2xl font-bold text-purple-400">
                     {estimatedRewards}
                   </div>
@@ -179,13 +171,13 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
 
               <div className="mt-4 pt-4 border-t border-gray-800">
                 <div className="flex justify-between">
-                  <div className="text-sm">Total Value After Period</div>
+                  <div className="text-sm">周期结束后总价值</div>
                   <div className="font-bold">
                     {(
                       Number.parseFloat(amount) +
                       Number.parseFloat(estimatedRewards)
                     ).toFixed(2)}{" "}
-                    Tokens
+                    代币
                   </div>
                 </div>
               </div>
@@ -195,10 +187,9 @@ export function StakingCalculator({ signer }: StakingCalculatorProps) {
               <TrendingUp className="h-5 w-5 text-cyan-400 mt-0.5" />
               <div className="text-xs text-gray-400">
                 <span className="block font-medium text-white mb-1">
-                  Compound Effect
+                  复利效应
                 </span>
-                Reinvesting your rewards can significantly increase your returns
-                over time through the power of compounding.
+                通过复利的力量，再投资您的奖励可以随着时间的推移显著增加您的回报。
               </div>
             </div>
           </div>

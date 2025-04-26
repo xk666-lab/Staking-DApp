@@ -60,6 +60,9 @@ export function MultiPoolStaking(props: MultiPoolStakingProps) {
       <CardContent>
         <DynamicMultiPoolContent {...props} />
       </CardContent>
+      <CardFooter className="text-sm text-gray-300 border-t border-gray-800 pt-4 font-medium">
+        注意: 年化收益率会根据市场情况变化
+      </CardFooter>
     </Card>
   );
 }
@@ -263,222 +266,213 @@ function MultiPoolStakingContent({ signer, account }: MultiPoolStakingProps) {
     }
   };
 
+  if (!isMounted) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
-          多池质押
-        </CardTitle>
-        <CardDescription className="text-base text-gray-200">
-          从具有不同风险/收益特性的多个质押池中选择
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-          </div>
-        ) : (
-          <Tabs
-            value={activePool}
-            onValueChange={setActivePool}
-            className="w-full"
-          >
-            <TabsList className="grid grid-cols-3 mb-6 bg-gray-800/50">
-              {pools.map((pool) => (
-                <TabsTrigger
-                  key={pool.id}
-                  value={pool.id}
-                  className="data-[state=active]:bg-gray-700 text-base font-medium"
-                >
-                  <div className="flex items-center">
-                    {pool.icon}
-                    <span className="ml-2">{pool.name}</span>
-                  </div>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
+    <>
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+        </div>
+      ) : (
+        <Tabs
+          value={activePool}
+          onValueChange={setActivePool}
+          className="w-full"
+        >
+          <TabsList className="grid grid-cols-3 mb-6 bg-gray-800/50">
             {pools.map((pool) => (
-              <TabsContent key={pool.id} value={pool.id} className="mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6">
-                    <div className="bg-gray-800/50 p-4 rounded-lg">
-                      <h3 className="text-base font-bold mb-3 text-white">
-                        池信息
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">
-                            年化收益率
-                          </span>
-                          <span className="font-bold text-lg text-cyan-400">
-                            {pool.apy}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">
-                            锁定期
-                          </span>
-                          <span className="text-white font-medium text-base">
-                            {pool.lockPeriod === "No lock"
-                              ? "无锁定"
-                              : pool.lockPeriod}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">
-                            最低质押量
-                          </span>
-                          <span className="text-white font-medium text-base">
-                            {pool.minStake} 代币
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">
-                            总质押量
-                          </span>
-                          <span className="text-white font-medium text-base">
-                            {pool.totalStaked} 代币
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">
-                            风险等级
-                          </span>
-                          <span>{getRiskBadge(pool.risk)}</span>
-                        </div>
-                      </div>
-                    </div>
+              <TabsTrigger
+                key={pool.id}
+                value={pool.id}
+                className="data-[state=active]:bg-gray-700 text-base font-medium"
+              >
+                <div className="flex items-center">
+                  {pool.icon}
+                  <span className="ml-2">{pool.name}</span>
+                </div>
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-                    <div className="bg-gray-800/50 p-4 rounded-lg">
-                      <div className="flex items-center mb-3">
-                        <Info className="h-5 w-5 mr-2 text-cyan-400" />
-                        <h3 className="text-base font-bold text-white">
-                          池描述
-                        </h3>
+          {pools.map((pool) => (
+            <TabsContent key={pool.id} value={pool.id} className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className="bg-gray-800/50 p-4 rounded-lg">
+                    <h3 className="text-base font-bold mb-3 text-white">
+                      池信息
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">
+                          年化收益率
+                        </span>
+                        <span className="font-bold text-lg text-cyan-400">
+                          {pool.apy}
+                        </span>
                       </div>
-                      <p className="text-base text-gray-200 leading-relaxed">
-                        {pool.id === "stable"
-                          ? "稳定池提供稳定的奖励，风险最小。无锁定期意味着您可以随时提取。"
-                          : pool.id === "growth"
-                          ? "增长池平衡了风险和回报，锁定期适中。年化收益率高于稳定池。"
-                          : "涡轮池提供最高的潜在回报，但带有更高的风险和更长的锁定期。"}
-                      </p>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">锁定期</span>
+                        <span className="text-white font-medium text-base">
+                          {pool.lockPeriod === "No lock"
+                            ? "无锁定"
+                            : pool.lockPeriod}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">
+                          最低质押量
+                        </span>
+                        <span className="text-white font-medium text-base">
+                          {pool.minStake} 代币
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">
+                          总质押量
+                        </span>
+                        <span className="text-white font-medium text-base">
+                          {pool.totalStaked} 代币
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">
+                          风险等级
+                        </span>
+                        <span>{getRiskBadge(pool.risk)}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-r from-gray-800/70 to-gray-900/70 p-6 rounded-lg border border-gray-700">
-                      <h3 className="text-base font-bold mb-3 text-white">
-                        您的股份
-                      </h3>
-                      <div className="text-center mb-4">
-                        <div className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
-                          {pool.userStaked}
-                        </div>
-                        <div className="text-base text-gray-200 mt-1">
-                          已质押代币
-                        </div>
-                      </div>
+                  <div className="bg-gray-800/50 p-4 rounded-lg">
+                    <div className="flex items-center mb-3">
+                      <Info className="h-5 w-5 mr-2 text-cyan-400" />
+                      <h3 className="text-base font-bold text-white">池描述</h3>
+                    </div>
+                    <p className="text-base text-gray-200 leading-relaxed">
+                      {pool.id === "stable"
+                        ? "稳定池提供稳定的奖励，风险最小。无锁定期意味着您可以随时提取。"
+                        : pool.id === "growth"
+                        ? "增长池平衡了风险和回报，锁定期适中。年化收益率高于稳定池。"
+                        : "涡轮池提供最高的潜在回报，但带有更高的风险和更长的锁定期。"}
+                    </p>
+                  </div>
+                </div>
 
-                      <div className="space-y-4">
-                        <div className="flex space-x-2">
-                          <Input
-                            type="number"
-                            placeholder={`最低 ${pool.minStake} 代币`}
-                            value={stakeAmount}
-                            onChange={(e) => setStakeAmount(e.target.value)}
-                            className="bg-gray-800 border-gray-700 text-white text-base"
-                          />
-                        </div>
-                        <Button
-                          onClick={() => handleStake(pool.id)}
-                          disabled={
-                            isStaking ||
-                            isApproving ||
-                            !stakeAmount ||
-                            Number(stakeAmount) < Number(pool.minStake)
-                          }
-                          className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-base font-bold py-5 shadow-lg shadow-purple-900/20 transition-all hover:shadow-purple-900/40"
-                        >
-                          <ArrowUpCircle className="mr-2 h-5 w-5" />
-                          {isApproving
-                            ? "授权中..."
-                            : isStaking
-                            ? "质押中..."
-                            : `在${
-                                pool.name === "Stable Pool"
-                                  ? "稳定池"
-                                  : pool.name === "Growth Pool"
-                                  ? "增长池"
-                                  : "涡轮池"
-                              }中质押`}
-                        </Button>
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-gray-800/70 to-gray-900/70 p-6 rounded-lg border border-gray-700">
+                    <h3 className="text-base font-bold mb-3 text-white">
+                      您的股份
+                    </h3>
+                    <div className="text-center mb-4">
+                      <div className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
+                        {pool.userStaked}
+                      </div>
+                      <div className="text-base text-gray-200 mt-1">
+                        已质押代币
                       </div>
                     </div>
 
-                    <div className="bg-gray-800/50 p-4 rounded-lg">
-                      <h3 className="text-base font-bold mb-3 text-white">
-                        预计奖励
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">每日</span>
-                          <span className="text-white font-medium text-base">
-                            {(
-                              (Number(pool.userStaked) *
-                                Number(pool.apy.replace("%", ""))) /
-                              36500
-                            ).toFixed(4)}{" "}
-                            代币
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">每周</span>
-                          <span className="text-white font-medium text-base">
-                            {(
-                              (Number(pool.userStaked) *
-                                Number(pool.apy.replace("%", ""))) /
-                              5200
-                            ).toFixed(4)}{" "}
-                            代币
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">每月</span>
-                          <span className="text-white font-medium text-base">
-                            {(
-                              (Number(pool.userStaked) *
-                                Number(pool.apy.replace("%", ""))) /
-                              1200
-                            ).toFixed(4)}{" "}
-                            代币
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-200 text-base">每年</span>
-                          <span className="text-white font-medium text-base">
-                            {(
-                              (Number(pool.userStaked) *
-                                Number(pool.apy.replace("%", ""))) /
-                              100
-                            ).toFixed(4)}{" "}
-                            代币
-                          </span>
-                        </div>
+                    <div className="space-y-4">
+                      <div className="flex space-x-2">
+                        <Input
+                          type="number"
+                          placeholder={`最低 ${pool.minStake} 代币`}
+                          value={stakeAmount}
+                          onChange={(e) => setStakeAmount(e.target.value)}
+                          className="bg-gray-800 border-gray-700 text-white text-base"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => handleStake(pool.id)}
+                        disabled={
+                          isStaking ||
+                          isApproving ||
+                          !stakeAmount ||
+                          Number(stakeAmount) < Number(pool.minStake)
+                        }
+                        className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-base font-bold py-5 shadow-lg shadow-purple-900/20 transition-all hover:shadow-purple-900/40"
+                      >
+                        <ArrowUpCircle className="mr-2 h-5 w-5" />
+                        {isApproving
+                          ? "授权中..."
+                          : isStaking
+                          ? "质押中..."
+                          : `在${
+                              pool.name === "Stable Pool"
+                                ? "稳定池"
+                                : pool.name === "Growth Pool"
+                                ? "增长池"
+                                : "涡轮池"
+                            }中质押`}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-800/50 p-4 rounded-lg">
+                    <h3 className="text-base font-bold mb-3 text-white">
+                      预计奖励
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">每日</span>
+                        <span className="text-white font-medium text-base">
+                          {(
+                            (Number(pool.userStaked) *
+                              Number(pool.apy.replace("%", ""))) /
+                            36500
+                          ).toFixed(4)}{" "}
+                          代币
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">每周</span>
+                        <span className="text-white font-medium text-base">
+                          {(
+                            (Number(pool.userStaked) *
+                              Number(pool.apy.replace("%", ""))) /
+                            5200
+                          ).toFixed(4)}{" "}
+                          代币
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">每月</span>
+                        <span className="text-white font-medium text-base">
+                          {(
+                            (Number(pool.userStaked) *
+                              Number(pool.apy.replace("%", ""))) /
+                            1200
+                          ).toFixed(4)}{" "}
+                          代币
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-200 text-base">每年</span>
+                        <span className="text-white font-medium text-base">
+                          {(
+                            (Number(pool.userStaked) *
+                              Number(pool.apy.replace("%", ""))) /
+                            100
+                          ).toFixed(4)}{" "}
+                          代币
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        )}
-      </CardContent>
-      <CardFooter className="text-sm text-gray-300 border-t border-gray-800 pt-4 font-medium">
-        注意: 年化收益率会根据市场情况变化
-      </CardFooter>
-    </Card>
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
+    </>
   );
 }
