@@ -101,24 +101,24 @@ export function BalancePanel({ signer, account, isOwner }: BalancePanelProps) {
           <div className="flex items-center gap-2">
             <CardTitle className="text-xl text-blue-400">账户余额</CardTitle>
             {isOwner ? (
-              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
+              <Badge className="bg-purple-500/30 text-purple-200 border-purple-500/40 text-xs">
                 管理员
               </Badge>
             ) : (
-              <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30 text-xs">
+              <Badge className="bg-cyan-500/30 text-cyan-200 border-cyan-500/40 text-xs">
                 用户
               </Badge>
             )}
           </div>
           <Badge
             variant="outline"
-            className="flex items-center gap-1 text-xs py-1 px-2 border-gray-700 text-gray-400"
+            className="flex items-center gap-1 text-xs py-1 px-2 border-gray-700 text-gray-300"
           >
             <RefreshCw className="h-3 w-3" />
             {lastUpdate.toLocaleTimeString("zh-CN")}
           </Badge>
         </div>
-        <CardDescription>
+        <CardDescription className="text-gray-300">
           {isOwner ? "查看您作为管理员的代币余额" : "查看您的代币余额"}
         </CardDescription>
       </CardHeader>
@@ -126,60 +126,67 @@ export function BalancePanel({ signer, account, isOwner }: BalancePanelProps) {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-gray-400 flex items-center">
-                <Wallet className="h-3 w-3 mr-1" />
+              <span className="text-xs text-gray-200 flex items-center font-medium">
+                <Wallet className="h-3 w-3 mr-1 text-cyan-400" />
                 质押代币
               </span>
             </div>
             {isLoading ? (
               <Skeleton className="h-6 w-full bg-gray-700" />
             ) : (
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-semibold text-white">
                 {formatNumber(stakingBalance)}
               </span>
             )}
-            <div className="text-xs text-gray-500 mt-1">可用于质押</div>
+            <div className="text-xs text-cyan-300/90 mt-1 font-medium">
+              可用于质押
+            </div>
           </div>
 
           <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-gray-400 flex items-center">
-                <Shield className="h-3 w-3 mr-1" />
+              <span className="text-xs text-gray-200 flex items-center font-medium">
+                <Shield className="h-3 w-3 mr-1 text-purple-400" />
                 已质押量
               </span>
             </div>
             {isLoading ? (
               <Skeleton className="h-6 w-full bg-gray-700" />
             ) : (
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-semibold text-white">
                 {formatNumber(stakedAmount)}
               </span>
             )}
-            <div className="text-xs text-gray-500 mt-1">正在产生奖励</div>
+            <div className="text-xs text-purple-300/90 mt-1 font-medium">
+              正在产生奖励
+            </div>
           </div>
 
           <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-gray-400 flex items-center">
-                <CreditCard className="h-3 w-3 mr-1" />
+              <span className="text-xs text-gray-200 flex items-center font-medium">
+                <CreditCard className="h-3 w-3 mr-1 text-yellow-400" />
                 奖励代币
               </span>
             </div>
             {isLoading ? (
               <Skeleton className="h-6 w-full bg-gray-700" />
             ) : (
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-semibold text-white">
                 {formatNumber(rewardBalance)}
               </span>
             )}
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-yellow-300/90 mt-1 font-medium">
               {isOwner ? "用于分配奖励" : "已获得的奖励"}
             </div>
           </div>
         </div>
 
-        <div className="text-xs text-gray-500 pt-2">
-          余额每30秒自动更新一次。管理员可以在Admin面板中设置奖励参数。
+        <div className="text-xs text-gray-300 pt-2 font-medium">
+          余额每30秒自动更新一次。
+          {isOwner
+            ? "您可以在Admin面板中设置奖励参数。"
+            : "质押代币可以获取奖励。"}
         </div>
       </CardContent>
     </Card>

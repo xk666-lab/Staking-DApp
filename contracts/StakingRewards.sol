@@ -7,6 +7,11 @@ contract StakingRewards {
 
     address public owner;
 
+    // 事件定义
+    event Staked(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event RewardPaid(address indexed user, uint256 reward);
+
     // Duration of rewards to be paid out (in seconds)
     uint256 public duration;
     // Timestamp of when the rewards finish
@@ -70,6 +75,7 @@ contract StakingRewards {
         stakingToken.transferFrom(msg.sender, address(this), _amount);
         balanceOf[msg.sender] += _amount;
         totalSupply += _amount;
+        emit Staked(msg.sender, _amount);
     }
 
     function withdraw(uint256 _amount) external updateReward(msg.sender) {
@@ -77,6 +83,7 @@ contract StakingRewards {
         balanceOf[msg.sender] -= _amount;
         totalSupply -= _amount;
         stakingToken.transfer(msg.sender, _amount);
+        emit Withdrawn(msg.sender, _amount);
     }
 
     function earned(address _account) public view returns (uint256) {
@@ -91,6 +98,7 @@ contract StakingRewards {
         if (reward > 0) {
             rewards[msg.sender] = 0;
             rewardsToken.transfer(msg.sender, reward);
+            emit RewardPaid(msg.sender, reward);
         }
     }
 

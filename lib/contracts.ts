@@ -3,9 +3,9 @@ import TokenABI from "../artifacts/contracts/ERC20.sol/ERC20.json";
 // Replace these with your actual contract addresses
 export function getContractAddresses() {
   return {
-    stakingAddress: "0xcB52f04f2f5d0a71dE308DAd9C14623Ac57DbC0a", // Replace with your staking contract address
-    stakingTokenAddress: "0xC51a331F7510817f2b2c7d29088e2c28273e5051", // Replace with your staking token address
-    rewardsTokenAddress: "0xFfF871C5b835533F53E1EFef24ee115346E6E652", // Replace with your rewards token address
+    stakingAddress: "0xC5b34E9D756E04c463d1d2dd73c3D06529351686", // Replace with your staking contract address
+    stakingTokenAddress: "0x3c0BECEE9085C80DBCD8b2bbA55a537CbBB420ee", // Replace with your staking token address
+    rewardsTokenAddress: "0x505e96Bef7fC6e4ca1C46d834D6879E1Ac2A3c83", // Replace with your rewards token address
   }
 }
 

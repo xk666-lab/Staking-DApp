@@ -238,9 +238,10 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">可用于质押:</span>
-            <span className="font-medium">
-              {Number.parseFloat(tokenBalance).toFixed(4)} 代币
+            <span className="text-gray-300 font-medium">可用于质押:</span>
+            <span className="font-semibold text-cyan-300">
+              {Number.parseFloat(tokenBalance).toFixed(4)}{" "}
+              <span className="text-cyan-400">代币</span>
             </span>
           </div>
 
@@ -265,7 +266,7 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
               variant="outline"
               size="sm"
               onClick={() => setStakeAmount(tokenBalance)}
-              className="border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
             >
               最大
             </Button>
@@ -297,13 +298,16 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
             </Button>
           )}
 
-          <div className="text-xs text-gray-500 flex justify-between">
+          <div className="text-xs text-gray-300 flex justify-between">
             <span>
-              当前授权额度: {Number.parseFloat(allowance).toFixed(2)} 代币
+              当前授权额度:{" "}
+              <span className="text-yellow-300 font-medium">
+                {Number.parseFloat(allowance).toFixed(2)} 代币
+              </span>
             </span>
             {Number.parseFloat(allowance) > 0 && (
               <button
-                className="text-cyan-500 hover:text-cyan-400 hover:underline"
+                className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium"
                 onClick={() => setShowApprovalInfo(true)}
               >
                 重新授权
@@ -316,9 +320,10 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
 
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">已质押余额:</span>
-            <span className="font-medium">
-              {Number.parseFloat(stakingBalance).toFixed(4)} 代币
+            <span className="text-gray-300 font-medium">已质押余额:</span>
+            <span className="font-semibold text-purple-300">
+              {Number.parseFloat(stakingBalance).toFixed(4)}{" "}
+              <span className="text-purple-400">代币</span>
             </span>
           </div>
           <div className="flex space-x-2">
@@ -333,7 +338,7 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
               variant="outline"
               size="sm"
               onClick={() => setWithdrawAmount(stakingBalance)}
-              className="border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
             >
               最大
             </Button>
@@ -352,7 +357,7 @@ export function StakingPanel({ signer, account }: StakingPanelProps) {
           </Button>
         </div>
       </CardContent>
-      <CardFooter className="text-xs text-gray-500 border-t border-gray-800 pt-4">
+      <CardFooter className="text-xs text-gray-300 border-t border-gray-800 pt-4">
         注意: 质押和提取操作需要支付少量gas费用
       </CardFooter>
     </Card>

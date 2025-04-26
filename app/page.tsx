@@ -275,7 +275,11 @@ export default function Home() {
 
                 <TabsContent value="dashboard" className="mt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <BalancePanel signer={signer} account={account} isOwner={isOwner} />
+                    <BalancePanel
+                      signer={signer}
+                      account={account}
+                      isOwner={isOwner}
+                    />
                     <StakingPanel signer={signer} account={account} />
                     <StatsPanel signer={signer} account={account} />
                     <RewardsPanel signer={signer} account={account} />
