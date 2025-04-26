@@ -12,6 +12,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, PieChart } from "lucide-react";
 import { stakingABI, tokenABI, getContractAddresses } from "@/lib/contracts";
+import dynamic from "next/dynamic";
+
+// 动态导入仪表盘内容组件，确保只在客户端渲染
+const DynamicDashboardContent = dynamic(
+  () => Promise.resolve(AnalyticsDashboardContent),
+  { ssr: false }
+);
 
 interface StakingEvent {
   date: string;
@@ -26,7 +33,27 @@ interface AnalyticsDashboardProps {
   account: string;
 }
 
-export function AnalyticsDashboard({
+// 主导出组件
+export function AnalyticsDashboard(props: AnalyticsDashboardProps) {
+  return (
+    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-cyan-400">
+          数据分析仪表板
+        </CardTitle>
+        <CardDescription className="text-base text-gray-300">
+          跟踪您的质押表现
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DynamicDashboardContent {...props} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// 客户端渲染内容组件
+function AnalyticsDashboardContent({
   signer,
   account,
 }: AnalyticsDashboardProps) {
@@ -317,9 +344,25 @@ export function AnalyticsDashboard({
             );
 
             // 按余额排序（从高到低）
-            stakersWithBalances.sort((a, b) =>
-              b.balance.gt(a.balance) ? 1 : b.balance.eq(a.balance) ? 0 : -1
-            );
+            stakersWithBalances.sort((a, b) => {
+              // 检查balance是否为BigNumber，如果是则使用gt和eq方法，否则使用常规比较
+              if (
+                typeof b.balance.gt === "function" &&
+                typeof a.balance.gt === "function"
+              ) {
+                // 使用BigNumber的gt和eq方法比较
+                return b.balance.gt(a.balance)
+                  ? 1
+                  : b.balance.eq(a.balance)
+                  ? 0
+                  : -1;
+              } else {
+                // 使用字符串转数字的方式比较
+                const balanceA = Number(a.balance.toString());
+                const balanceB = Number(b.balance.toString());
+                return balanceB > balanceA ? 1 : balanceB === balanceA ? 0 : -1;
+              }
+            });
 
             // 找到用户的排名
             userRanking =
@@ -359,320 +402,265 @@ export function AnalyticsDashboard({
 
   // 格式化日期为"月 日"格式
   const formatDate = (date: Date): string => {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return `${months[date.getMonth()]} ${date.getDate()}`;
+    return date.toLocaleString("zh-CN", {
+      month: "short",
+      day: "numeric",
+    });
   };
 
   if (!isMounted) {
     return (
-      <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
-        <CardHeader>
-          <CardTitle className="text-xl text-cyan-400">
-            Analytics Dashboard
-          </CardTitle>
-          <CardDescription>Track your staking performance</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+      </div>
     );
   }
 
   return (
-    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm col-span-2">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-cyan-400">
-          Analytics Dashboard
-        </CardTitle>
-        <CardDescription className="text-base text-gray-300">
-          Track your staking performance
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+    <>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <div className="text-sm text-gray-400 mb-1">当前APY</div>
+          <div className="text-2xl font-bold text-cyan-400">{apyEstimate}%</div>
+          <div className="text-xs text-gray-500 mt-1">估计年收益率</div>
+        </div>
+
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <div className="text-sm text-gray-400 mb-1">总质押价值</div>
+          <div className="text-2xl font-bold text-purple-400">
+            ${totalStakedValue}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-gray-800/50 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Current APY</div>
-                <div className="text-2xl font-bold text-cyan-400">
-                  {apyEstimate}%
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Estimated annual yield
-                </div>
-              </div>
+          <div className="text-xs text-gray-500 mt-1">基于当前代币价格</div>
+        </div>
 
-              <div className="bg-gray-800/50 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">
-                  Total Staked Value
-                </div>
-                <div className="text-2xl font-bold text-purple-400">
-                  ${totalStakedValue}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Based on current token price
-                </div>
-              </div>
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <div className="text-sm text-gray-400 mb-1">您的排名</div>
+          <div className="text-2xl font-bold text-cyan-400">#{userRank}</div>
+          <div className="text-xs text-gray-500 mt-1">
+            在{totalStakers}个质押者中
+          </div>
+        </div>
+      </div>
 
-              <div className="bg-gray-800/50 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Your Rank</div>
-                <div className="text-2xl font-bold text-cyan-400">
-                  #{userRank}
+      <Tabs defaultValue="staking" className="w-full">
+        <TabsList className="grid grid-cols-3 mb-4 bg-gray-800/50">
+          <TabsTrigger
+            value="staking"
+            className="data-[state=active]:bg-gray-700"
+          >
+            <BarChart className="h-4 w-4 mr-2" />
+            质押历史
+          </TabsTrigger>
+          <TabsTrigger
+            value="rewards"
+            className="data-[state=active]:bg-gray-700"
+          >
+            <LineChart className="h-4 w-4 mr-2" />
+            奖励历史
+          </TabsTrigger>
+          <TabsTrigger
+            value="distribution"
+            className="data-[state=active]:bg-gray-700"
+          >
+            <PieChart className="h-4 w-4 mr-2" />
+            分配
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="staking" className="mt-0">
+          <div className="bg-gray-800/30 rounded-lg p-4">
+            {stakingHistory.length === 0 ? (
+              <div className="flex justify-center items-center h-64 text-gray-500">
+                暂无质押记录
+              </div>
+            ) : (
+              <>
+                <div className="overflow-auto max-h-64">
+                  <table className="w-full">
+                    <thead className="text-gray-200 border-b border-gray-700">
+                      <tr>
+                        <th className="text-left py-3 text-base font-bold">
+                          日期
+                        </th>
+                        <th className="text-right py-3 text-base font-bold">
+                          金额
+                        </th>
+                        <th className="text-right py-3 text-base font-bold">
+                          交易哈希
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stakingHistory.map((item, index) => (
+                        <tr key={index} className="border-b border-gray-800">
+                          <td className="py-3 text-base font-medium text-white">
+                            {item.date}
+                          </td>
+                          <td className="text-right py-3 text-base font-medium text-cyan-400">
+                            {item.amount.toFixed(4)}
+                          </td>
+                          <td className="text-right truncate max-w-[120px]">
+                            {item.transactionHash ? (
+                              <a
+                                href={`https://etherscan.io/tx/${item.transactionHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-300 hover:text-cyan-400 truncate text-base"
+                              >
+                                {item.transactionHash.substring(0, 8)}...
+                              </a>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Out of {totalStakers} stakers
+                <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
+                  您的质押金额记录
+                </div>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rewards" className="mt-0">
+          <div className="bg-gray-800/30 rounded-lg p-4">
+            {rewardHistory.length === 0 ? (
+              <div className="flex justify-center items-center h-64 text-gray-500">
+                暂无奖励记录
+              </div>
+            ) : (
+              <>
+                <div className="overflow-auto max-h-64">
+                  <table className="w-full">
+                    <thead className="text-gray-200 border-b border-gray-700">
+                      <tr>
+                        <th className="text-left py-3 text-base font-bold">
+                          日期
+                        </th>
+                        <th className="text-right py-3 text-base font-bold">
+                          奖励金额
+                        </th>
+                        <th className="text-right py-3 text-base font-bold">
+                          交易哈希
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rewardHistory.map((item, index) => (
+                        <tr key={index} className="border-b border-gray-800">
+                          <td className="py-3 text-base font-medium text-white">
+                            {item.date}
+                          </td>
+                          <td className="text-right py-3 text-base font-medium text-purple-400">
+                            {item.amount.toFixed(4)}
+                          </td>
+                          <td className="text-right truncate max-w-[120px]">
+                            {item.transactionHash ? (
+                              <a
+                                href={`https://etherscan.io/tx/${item.transactionHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-300 hover:text-purple-400 truncate text-base"
+                              >
+                                {item.transactionHash.substring(0, 8)}...
+                              </a>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
+                  您的奖励收益记录
+                </div>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="distribution" className="mt-0">
+          <div className="bg-gray-800/30 rounded-lg p-4">
+            <div className="overflow-auto max-h-64">
+              <table className="w-full mb-4">
+                <thead className="text-gray-200 border-b border-gray-700">
+                  <tr>
+                    <th className="text-left py-3 text-base font-bold">
+                      质押分布
+                    </th>
+                    <th className="text-right py-3 text-base font-bold">
+                      百分比
+                    </th>
+                    <th className="text-right py-3 text-base font-bold">
+                      状态
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 text-base font-medium text-white">
+                      您的质押
+                    </td>
+                    <td className="text-right py-3 text-lg font-bold text-cyan-400">
+                      {userStakePercentage}%
+                    </td>
+                    <td className="text-right">
+                      <span className="inline-block w-4 h-4 rounded-full bg-cyan-500 mr-2 align-middle"></span>
+                      <span className="text-gray-200 text-base">活跃</span>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 text-base font-medium text-white">
+                      其他质押者
+                    </td>
+                    <td className="text-right py-3 text-lg font-bold text-purple-400">
+                      {100 - userStakePercentage}%
+                    </td>
+                    <td className="text-right">
+                      <span className="inline-block w-4 h-4 rounded-full bg-purple-600 opacity-80 mr-2 align-middle"></span>
+                      <span className="text-gray-200 text-base">活跃</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="bg-gray-800/70 p-4 rounded-lg">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-200 text-base mb-1">您的排名</p>
+                    <p className="text-2xl font-bold text-cyan-400">
+                      #{userRank}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-200 text-base mb-1">总质押者</p>
+                    <p className="text-2xl font-bold text-purple-400">
+                      {totalStakers}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <Tabs defaultValue="staking" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4 bg-gray-800/50">
-                <TabsTrigger
-                  value="staking"
-                  className="data-[state=active]:bg-gray-700"
-                >
-                  <BarChart className="h-4 w-4 mr-2" />
-                  质押历史
-                </TabsTrigger>
-                <TabsTrigger
-                  value="rewards"
-                  className="data-[state=active]:bg-gray-700"
-                >
-                  <LineChart className="h-4 w-4 mr-2" />
-                  奖励历史
-                </TabsTrigger>
-                <TabsTrigger
-                  value="distribution"
-                  className="data-[state=active]:bg-gray-700"
-                >
-                  <PieChart className="h-4 w-4 mr-2" />
-                  分配
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="staking" className="mt-0">
-                <div className="bg-gray-800/30 rounded-lg p-4">
-                  {stakingHistory.length === 0 ? (
-                    <div className="flex justify-center items-center h-64 text-gray-500">
-                      暂无质押记录
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-auto max-h-64">
-                        <table className="w-full">
-                          <thead className="text-gray-200 border-b border-gray-700">
-                            <tr>
-                              <th className="text-left py-3 text-base font-bold">
-                                日期
-                              </th>
-                              <th className="text-right py-3 text-base font-bold">
-                                金额
-                              </th>
-                              <th className="text-right py-3 text-base font-bold">
-                                交易哈希
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {stakingHistory.map((item, index) => (
-                              <tr
-                                key={index}
-                                className="border-b border-gray-800"
-                              >
-                                <td className="py-3 text-base font-medium text-white">
-                                  {item.date}
-                                </td>
-                                <td className="text-right py-3 text-base font-medium text-cyan-400">
-                                  {item.amount.toFixed(4)}
-                                </td>
-                                <td className="text-right truncate max-w-[120px]">
-                                  {item.transactionHash ? (
-                                    <a
-                                      href={`https://etherscan.io/tx/${item.transactionHash}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-gray-300 hover:text-cyan-400 truncate text-base"
-                                    >
-                                      {item.transactionHash.substring(0, 8)}...
-                                    </a>
-                                  ) : (
-                                    "-"
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
-                        您的质押金额记录
-                      </div>
-                    </>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="rewards" className="mt-0">
-                <div className="bg-gray-800/30 rounded-lg p-4">
-                  {rewardHistory.length === 0 ? (
-                    <div className="flex justify-center items-center h-64 text-gray-500">
-                      暂无奖励记录
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-auto max-h-64">
-                        <table className="w-full">
-                          <thead className="text-gray-200 border-b border-gray-700">
-                            <tr>
-                              <th className="text-left py-3 text-base font-bold">
-                                日期
-                              </th>
-                              <th className="text-right py-3 text-base font-bold">
-                                奖励金额
-                              </th>
-                              <th className="text-right py-3 text-base font-bold">
-                                交易哈希
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rewardHistory.map((item, index) => (
-                              <tr
-                                key={index}
-                                className="border-b border-gray-800"
-                              >
-                                <td className="py-3 text-base font-medium text-white">
-                                  {item.date}
-                                </td>
-                                <td className="text-right py-3 text-base font-medium text-purple-400">
-                                  {item.amount.toFixed(4)}
-                                </td>
-                                <td className="text-right truncate max-w-[120px]">
-                                  {item.transactionHash ? (
-                                    <a
-                                      href={`https://etherscan.io/tx/${item.transactionHash}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-gray-300 hover:text-purple-400 truncate text-base"
-                                    >
-                                      {item.transactionHash.substring(0, 8)}...
-                                    </a>
-                                  ) : (
-                                    "-"
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
-                        您的奖励收益记录
-                      </div>
-                    </>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="distribution" className="mt-0">
-                <div className="bg-gray-800/30 rounded-lg p-4">
-                  <div className="overflow-auto max-h-64">
-                    <table className="w-full mb-4">
-                      <thead className="text-gray-200 border-b border-gray-700">
-                        <tr>
-                          <th className="text-left py-3 text-base font-bold">
-                            质押分布
-                          </th>
-                          <th className="text-right py-3 text-base font-bold">
-                            百分比
-                          </th>
-                          <th className="text-right py-3 text-base font-bold">
-                            状态
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-base font-medium text-white">
-                            您的质押
-                          </td>
-                          <td className="text-right py-3 text-lg font-bold text-cyan-400">
-                            {userStakePercentage}%
-                          </td>
-                          <td className="text-right">
-                            <span className="inline-block w-4 h-4 rounded-full bg-cyan-500 mr-2 align-middle"></span>
-                            <span className="text-gray-200 text-base">
-                              活跃
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-base font-medium text-white">
-                            其他质押者
-                          </td>
-                          <td className="text-right py-3 text-lg font-bold text-purple-400">
-                            {100 - userStakePercentage}%
-                          </td>
-                          <td className="text-right">
-                            <span className="inline-block w-4 h-4 rounded-full bg-purple-600 opacity-80 mr-2 align-middle"></span>
-                            <span className="text-gray-200 text-base">
-                              活跃
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    <div className="bg-gray-800/70 p-4 rounded-lg">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-gray-200 text-base mb-1">
-                            您的排名
-                          </p>
-                          <p className="text-2xl font-bold text-cyan-400">
-                            #{userRank}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-gray-200 text-base mb-1">
-                            总质押者
-                          </p>
-                          <p className="text-2xl font-bold text-purple-400">
-                            {totalStakers}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
-                    质押分布详情
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            <div className="text-center text-base font-medium text-gray-200 mt-4 py-2 bg-gray-800/50 rounded-lg">
+              质押分布详情
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }
