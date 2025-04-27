@@ -18,6 +18,7 @@ import {
   Clock,
   ExternalLink,
   RefreshCw,
+  Copy,
 } from "lucide-react";
 import { stakingABI, getContractAddresses } from "@/lib/contracts";
 import Link from "next/link";
@@ -45,6 +46,7 @@ interface Transaction {
   status: "confirmed" | "pending" | "failed";
   pool?: string;
   blockNumber: number;
+  user?: string;
 }
 
 // 主导出组件
@@ -184,6 +186,7 @@ function TransactionHistoryContent({
               status: "confirmed",
               pool: "Stable Pool", // 这里可以根据实际情况确定池名称
               blockNumber: event.blockNumber,
+              user: decodedData.args.user,
             });
           } catch (error) {
             console.error("解析质押事件出错:", error);
@@ -217,6 +220,7 @@ function TransactionHistoryContent({
               status: "confirmed",
               pool: "Stable Pool",
               blockNumber: event.blockNumber,
+              user: decodedData.args.user,
             });
           } catch (error) {
             console.error("解析提取事件出错:", error);
@@ -249,6 +253,7 @@ function TransactionHistoryContent({
               hash: event.transactionHash,
               status: "confirmed",
               blockNumber: event.blockNumber,
+              user: decodedData.args.user,
             });
           } catch (error) {
             console.error("解析奖励事件出错:", error);
@@ -276,6 +281,7 @@ function TransactionHistoryContent({
               status: "confirmed",
               pool: "Stable Pool",
               blockNumber: currentBlock - 100,
+              user: "0x1234...5678",
             },
             {
               id: "mock-tx2",
@@ -287,6 +293,7 @@ function TransactionHistoryContent({
               hash: "0x3456...7890",
               status: "confirmed",
               blockNumber: currentBlock - 500,
+              user: "0x3456...7890",
             },
           ];
           setTransactions(mockTransactions);
@@ -463,53 +470,497 @@ function TransactionHistoryContent({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-4">
-          {filteredTransactions.length > 0 ? (
-            <div className="space-y-4 max-h-[400px] overflow-auto pr-2">
-              {filteredTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg border border-gray-700/50"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gray-900 rounded-full">
-                      {getTransactionIcon(tx.type)}
-                    </div>
-                    <div>
-                      <div className="font-bold text-base text-white">
-                        {getTransactionDescription(tx)}
-                      </div>
-                      <div className="text-sm text-gray-400 mt-1 flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {tx.dateTime}
-                        {tx.hash && (
-                          <Link
-                            href={`https://etherscan.io/tx/${tx.hash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-2 flex items-center hover:text-cyan-400 transition-colors"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            查看交易
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg">{getAmountText(tx)}</div>
-                    <div className="mt-1">{getStatusBadge(tx.status)}</div>
-                  </div>
-                </div>
-              ))}
+        <TabsContent value="all" suppressHydrationWarning>
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              没有找到交易记录
             </div>
           ) : (
-            <div className="text-center py-10 text-gray-300">
-              <Clock className="h-12 w-12 mx-auto mb-3 opacity-50 text-gray-400" />
-              <p className="text-lg">暂无交易记录</p>
-              <p className="text-sm mt-2 text-gray-400">
-                开始质押后，您的交易将会显示在这里
-              </p>
+            <div className="rounded-md border border-gray-800 overflow-hidden">
+              {/* 表格头部 */}
+              <div className="grid grid-cols-5 gap-2 p-3 bg-gray-800/50 text-xs text-gray-300 font-medium border-b border-gray-700">
+                <div>日期</div>
+                <div>类型</div>
+                <div>金额</div>
+                <div>质押者地址</div>
+                <div>交易哈希</div>
+              </div>
+
+              {/* 表格内容 */}
+              <div className="divide-y divide-gray-800">
+                {filteredTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-5 gap-2 p-3 hover:bg-gray-800/30 transition-colors"
+                  >
+                    {/* 日期和时间 */}
+                    <div className="text-sm text-gray-300">
+                      {new Date(tx.timestamp).toLocaleDateString("zh-CN")}
+                      <div className="text-xs text-gray-500">
+                        {new Date(tx.timestamp).toLocaleTimeString("zh-CN")}
+                      </div>
+                    </div>
+
+                    {/* 交易类型 */}
+                    <div className="flex items-center">
+                      {getTransactionIcon(tx.type)}
+                      <span className="ml-2 text-sm">
+                        {getTransactionDescription(tx)}
+                      </span>
+                    </div>
+
+                    {/* 金额 */}
+                    <div className="text-sm">{getAmountText(tx)}</div>
+
+                    {/* 质押者地址 */}
+                    <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                      {tx.type === "stake" ? (
+                        account === tx.user ? (
+                          <span className="text-cyan-400">您的地址</span>
+                        ) : (
+                          <>
+                            {tx.user?.substring(0, 8)}...
+                            {tx.user?.substring(tx.user.length - 6)}
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(tx.user || "")
+                              }
+                              className="ml-1 text-cyan-500 hover:text-cyan-400"
+                              title="复制地址"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </div>
+
+                    {/* 交易哈希 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                        {tx.hash.substring(0, 8)}...
+                        {tx.hash.substring(tx.hash.length - 6)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tx.hash)}
+                          className="text-gray-500 hover:text-gray-300"
+                          title="复制交易哈希"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <a
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 hover:text-gray-300"
+                          title="在区块浏览器中查看"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="stake" suppressHydrationWarning>
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              没有找到质押记录
+            </div>
+          ) : (
+            <div className="rounded-md border border-gray-800 overflow-hidden">
+              {/* 表格头部 */}
+              <div className="grid grid-cols-5 gap-2 p-3 bg-gray-800/50 text-xs text-gray-300 font-medium border-b border-gray-700">
+                <div>日期</div>
+                <div>类型</div>
+                <div>金额</div>
+                <div>质押者地址</div>
+                <div>交易哈希</div>
+              </div>
+
+              {/* 表格内容 */}
+              <div className="divide-y divide-gray-800">
+                {filteredTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-5 gap-2 p-3 hover:bg-gray-800/30 transition-colors"
+                  >
+                    {/* 日期和时间 */}
+                    <div className="text-sm text-gray-300">
+                      {new Date(tx.timestamp).toLocaleDateString("zh-CN")}
+                      <div className="text-xs text-gray-500">
+                        {new Date(tx.timestamp).toLocaleTimeString("zh-CN")}
+                      </div>
+                    </div>
+
+                    {/* 交易类型 */}
+                    <div className="flex items-center">
+                      {getTransactionIcon(tx.type)}
+                      <span className="ml-2 text-sm">
+                        {getTransactionDescription(tx)}
+                      </span>
+                    </div>
+
+                    {/* 金额 */}
+                    <div className="text-sm">{getAmountText(tx)}</div>
+
+                    {/* 质押者地址 */}
+                    <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                      {tx.type === "stake" ? (
+                        account === tx.user ? (
+                          <span className="text-cyan-400">您的地址</span>
+                        ) : (
+                          <>
+                            {tx.user?.substring(0, 8)}...
+                            {tx.user?.substring(tx.user.length - 6)}
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(tx.user || "")
+                              }
+                              className="ml-1 text-cyan-500 hover:text-cyan-400"
+                              title="复制地址"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </div>
+
+                    {/* 交易哈希 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                        {tx.hash.substring(0, 8)}...
+                        {tx.hash.substring(tx.hash.length - 6)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tx.hash)}
+                          className="text-gray-500 hover:text-gray-300"
+                          title="复制交易哈希"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <a
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 hover:text-gray-300"
+                          title="在区块浏览器中查看"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="withdraw" suppressHydrationWarning>
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              没有找到提取记录
+            </div>
+          ) : (
+            <div className="rounded-md border border-gray-800 overflow-hidden">
+              {/* 表格头部 */}
+              <div className="grid grid-cols-5 gap-2 p-3 bg-gray-800/50 text-xs text-gray-300 font-medium border-b border-gray-700">
+                <div>日期</div>
+                <div>类型</div>
+                <div>金额</div>
+                <div>提取者地址</div>
+                <div>交易哈希</div>
+              </div>
+
+              {/* 表格内容 */}
+              <div className="divide-y divide-gray-800">
+                {filteredTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-5 gap-2 p-3 hover:bg-gray-800/30 transition-colors"
+                  >
+                    {/* 日期和时间 */}
+                    <div className="text-sm text-gray-300">
+                      {new Date(tx.timestamp).toLocaleDateString("zh-CN")}
+                      <div className="text-xs text-gray-500">
+                        {new Date(tx.timestamp).toLocaleTimeString("zh-CN")}
+                      </div>
+                    </div>
+
+                    {/* 交易类型 */}
+                    <div className="flex items-center">
+                      {getTransactionIcon(tx.type)}
+                      <span className="ml-2 text-sm">
+                        {getTransactionDescription(tx)}
+                      </span>
+                    </div>
+
+                    {/* 金额 */}
+                    <div className="text-sm">{getAmountText(tx)}</div>
+
+                    {/* 提取者地址 */}
+                    <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                      {tx.type === "withdraw" ? (
+                        account === tx.user ? (
+                          <span className="text-cyan-400">您的地址</span>
+                        ) : (
+                          <>
+                            {tx.user?.substring(0, 8)}...
+                            {tx.user?.substring(tx.user.length - 6)}
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(tx.user || "")
+                              }
+                              className="ml-1 text-cyan-500 hover:text-cyan-400"
+                              title="复制地址"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </div>
+
+                    {/* 交易哈希 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                        {tx.hash.substring(0, 8)}...
+                        {tx.hash.substring(tx.hash.length - 6)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tx.hash)}
+                          className="text-gray-500 hover:text-gray-300"
+                          title="复制交易哈希"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <a
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 hover:text-gray-300"
+                          title="在区块浏览器中查看"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="claim" suppressHydrationWarning>
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              没有找到领取记录
+            </div>
+          ) : (
+            <div className="rounded-md border border-gray-800 overflow-hidden">
+              {/* 表格头部 */}
+              <div className="grid grid-cols-5 gap-2 p-3 bg-gray-800/50 text-xs text-gray-300 font-medium border-b border-gray-700">
+                <div>日期</div>
+                <div>类型</div>
+                <div>金额</div>
+                <div>领取者地址</div>
+                <div>交易哈希</div>
+              </div>
+
+              {/* 表格内容 */}
+              <div className="divide-y divide-gray-800">
+                {filteredTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-5 gap-2 p-3 hover:bg-gray-800/30 transition-colors"
+                  >
+                    {/* 日期和时间 */}
+                    <div className="text-sm text-gray-300">
+                      {new Date(tx.timestamp).toLocaleDateString("zh-CN")}
+                      <div className="text-xs text-gray-500">
+                        {new Date(tx.timestamp).toLocaleTimeString("zh-CN")}
+                      </div>
+                    </div>
+
+                    {/* 交易类型 */}
+                    <div className="flex items-center">
+                      {getTransactionIcon(tx.type)}
+                      <span className="ml-2 text-sm">
+                        {getTransactionDescription(tx)}
+                      </span>
+                    </div>
+
+                    {/* 金额 */}
+                    <div className="text-sm">{getAmountText(tx)}</div>
+
+                    {/* 领取者地址 */}
+                    <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                      {tx.type === "claim" ? (
+                        account === tx.user ? (
+                          <span className="text-cyan-400">您的地址</span>
+                        ) : (
+                          <>
+                            {tx.user?.substring(0, 8)}...
+                            {tx.user?.substring(tx.user.length - 6)}
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(tx.user || "")
+                              }
+                              className="ml-1 text-cyan-500 hover:text-cyan-400"
+                              title="复制地址"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </div>
+
+                    {/* 交易哈希 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                        {tx.hash.substring(0, 8)}...
+                        {tx.hash.substring(tx.hash.length - 6)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tx.hash)}
+                          className="text-gray-500 hover:text-gray-300"
+                          title="复制交易哈希"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <a
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 hover:text-gray-300"
+                          title="在区块浏览器中查看"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="referral" suppressHydrationWarning>
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              没有找到推荐记录
+            </div>
+          ) : (
+            <div className="rounded-md border border-gray-800 overflow-hidden">
+              {/* 表格头部 */}
+              <div className="grid grid-cols-5 gap-2 p-3 bg-gray-800/50 text-xs text-gray-300 font-medium border-b border-gray-700">
+                <div>日期</div>
+                <div>类型</div>
+                <div>金额</div>
+                <div>推荐者地址</div>
+                <div>交易哈希</div>
+              </div>
+
+              {/* 表格内容 */}
+              <div className="divide-y divide-gray-800">
+                {filteredTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-5 gap-2 p-3 hover:bg-gray-800/30 transition-colors"
+                  >
+                    {/* 日期和时间 */}
+                    <div className="text-sm text-gray-300">
+                      {new Date(tx.timestamp).toLocaleDateString("zh-CN")}
+                      <div className="text-xs text-gray-500">
+                        {new Date(tx.timestamp).toLocaleTimeString("zh-CN")}
+                      </div>
+                    </div>
+
+                    {/* 交易类型 */}
+                    <div className="flex items-center">
+                      {getTransactionIcon(tx.type)}
+                      <span className="ml-2 text-sm">
+                        {getTransactionDescription(tx)}
+                      </span>
+                    </div>
+
+                    {/* 金额 */}
+                    <div className="text-sm">{getAmountText(tx)}</div>
+
+                    {/* 推荐者地址 */}
+                    <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                      {tx.type === "referral" ? (
+                        account === tx.user ? (
+                          <span className="text-cyan-400">您的地址</span>
+                        ) : (
+                          <>
+                            {tx.user?.substring(0, 8)}...
+                            {tx.user?.substring(tx.user.length - 6)}
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(tx.user || "")
+                              }
+                              className="ml-1 text-cyan-500 hover:text-cyan-400"
+                              title="复制地址"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </div>
+
+                    {/* 交易哈希 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-300 overflow-hidden text-ellipsis">
+                        {tx.hash.substring(0, 8)}...
+                        {tx.hash.substring(tx.hash.length - 6)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tx.hash)}
+                          className="text-gray-500 hover:text-gray-300"
+                          title="复制交易哈希"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <a
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-500 hover:text-gray-300"
+                          title="在区块浏览器中查看"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </TabsContent>
