@@ -112,31 +112,77 @@ export function ConnectWallet({
 
     try {
       setIsLoadingAccounts(true);
-      await provider.send("eth_requestAccounts", []);
-      const accounts = await provider.listAccounts();
+
+      // 优化：同时请求账户访问权限和账户列表
+      // 首先尝试使用ethereum_requestAccounts方法，更现代化的方法
+      try {
+        await (window as any).ethereum.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+      } catch (permError) {
+        console.log("权限请求失败，尝试基本连接:", permError);
+        // 回退到基本方法
+        await provider.send("eth_requestAccounts", []);
+      }
+
+      // 直接从ethereum对象获取账户可能更可靠
+      const rawAccounts = await (window as any).ethereum.request({
+        method: "eth_accounts",
+      });
+
+      console.log("获取到的原始账户:", rawAccounts);
+
+      if (!rawAccounts || rawAccounts.length === 0) {
+        toast({
+          title: "未找到账户",
+          description: "请确保您在MetaMask中已解锁并有可用账户",
+        });
+        setAvailableAccounts([]);
+        setIsLoadingAccounts(false);
+        return;
+      }
 
       const accountsInfo: AccountInfo[] = [];
 
-      for (const acc of accounts) {
-        const address = await acc.getAddress();
-        const balance = await provider.getBalance(address);
-
-        let ensName = null;
+      // 为每个地址获取余额和ENS名称
+      for (const address of rawAccounts) {
         try {
-          // 如果是主网或支持ENS的网络，尝试解析ENS名称
-          ensName = await provider.lookupAddress(address);
-        } catch (e) {
-          // ENS可能不可用，忽略错误
-        }
+          const balance = await provider.getBalance(address);
 
-        accountsInfo.push({
-          address,
-          ethBalance: ethers.formatEther(balance),
-          ensName,
-        });
+          let ensName = null;
+          try {
+            ensName = await provider.lookupAddress(address);
+          } catch (e) {
+            // ENS可能不可用，忽略错误
+          }
+
+          accountsInfo.push({
+            address,
+            ethBalance: ethers.formatEther(balance),
+            ensName,
+          });
+        } catch (addrError) {
+          console.error("处理账户信息时出错:", addrError);
+          // 即使有错误，仍然添加账户但标记余额为未知
+          accountsInfo.push({
+            address,
+            ethBalance: "未知",
+            ensName: null,
+          });
+        }
       }
 
+      console.log("处理后的账户信息:", accountsInfo);
       setAvailableAccounts(accountsInfo);
+
+      if (accountsInfo.length === 0) {
+        toast({
+          title: "无法获取账户详情",
+          description: "已连接MetaMask，但无法获取账户详细信息",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("获取可用账户时出错:", error);
       toast({
@@ -205,14 +251,35 @@ export function ConnectWallet({
     if (!provider) return;
 
     try {
-      // 请求切换到特定账户
-      await provider.send("wallet_requestPermissions", [
-        {
-          eth_accounts: {
-            addresses: [address],
+      // 首先尝试更安全的钱包请求
+      try {
+        await (window as any).ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [
+            {
+              chainId: await provider
+                .getNetwork()
+                .then((net) => "0x" + net.chainId.toString(16)),
+            },
+          ],
+        });
+
+        // 然后请求切换到特定账户
+        await (window as any).ethereum.request({
+          method: "eth_requestAccounts",
+          params: [{ eth_accounts: { addresses: [address] } }],
+        });
+      } catch (switchError) {
+        console.log("使用现代API切换账户失败，尝试后备方法:", switchError);
+        // 回退到传统方法
+        await provider.send("wallet_requestPermissions", [
+          {
+            eth_accounts: {
+              addresses: [address],
+            },
           },
-        },
-      ]);
+        ]);
+      }
 
       // 重新获取签名者
       const signer = await provider.getSigner();
@@ -233,7 +300,7 @@ export function ConnectWallet({
       console.error("切换账户时出错:", error);
       toast({
         title: "切换账户失败",
-        description: "无法切换到所选账户，请重试",
+        description: "无法切换到所选账户，请在MetaMask中手动切换",
         variant: "destructive",
       });
     }
@@ -418,8 +485,11 @@ export function ConnectWallet({
                         <Skeleton className="h-10 w-full bg-gray-700" />
                       </div>
                     ) : availableAccounts.length === 0 ? (
-                      <div className="text-sm text-gray-400 py-2">
-                        未找到其他账户
+                      <div className="text-sm text-gray-400 py-2 space-y-2">
+                        <p>未找到其他账户</p>
+                        <p className="text-xs text-yellow-400">
+                          提示：如果您在MetaMask中添加了新账户，请点击下方的"刷新账户列表"按钮
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-2 py-2">
@@ -473,7 +543,7 @@ export function ConnectWallet({
                       size="sm"
                       onClick={fetchAvailableAccounts}
                       disabled={isLoadingAccounts}
-                      className="w-full mt-2 border-gray-700 text-gray-300 bg-gray-800/50 hover:bg-gray-700"
+                      className="w-full mt-2 border-cyan-800 text-cyan-300 bg-cyan-900/30 hover:bg-cyan-800/50"
                     >
                       {isLoadingAccounts ? (
                         <>

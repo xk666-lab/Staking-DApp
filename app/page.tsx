@@ -31,9 +31,11 @@ import {
   Sun,
   Shield,
   User,
+  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { stakingABI, getContractAddresses } from "@/lib/contracts";
+import { TokenMinter } from "@/components/token-minter";
 
 export default function Home() {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
@@ -136,7 +138,7 @@ export default function Home() {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="mb-6 md:mb-0">
                 <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600">
-                  Quantum Staking
+                  量子质押平台
                 </h1>
                 <p
                   className={`${
@@ -271,6 +273,17 @@ export default function Home() {
                     <History className="h-4 w-4 mr-2" />
                     历史
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="minter"
+                    className={`flex-1 ${
+                      theme === "dark"
+                        ? "data-[state=active]:bg-gray-700"
+                        : "data-[state=active]:bg-white"
+                    }`}
+                  >
+                    <Coins className="h-4 w-4 mr-2" />
+                    铸造
+                  </TabsTrigger>
                   {isOwner && (
                     <TabsTrigger
                       value="admin"
@@ -319,6 +332,14 @@ export default function Home() {
 
                 <TabsContent value="history" className="mt-6">
                   <TransactionHistory signer={signer} account={account} />
+                </TabsContent>
+
+                <TabsContent value="minter" className="mt-6">
+                  <TokenMinter
+                    signer={signer}
+                    account={account}
+                    isOwner={isOwner}
+                  />
                 </TabsContent>
 
                 {isOwner && (
